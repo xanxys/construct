@@ -1,5 +1,6 @@
-#include <iostream>
+#include <array>
 #include <fstream>
+#include <iostream>
 #include <string>
 #include <vector>
 
@@ -19,18 +20,26 @@
 
 class Object {
 public:
-	Object();
+	Object(int n_vertex, const float* pos);
 	void render();
 private:
+	const int n_vertex;
 	GLuint vertexbuffer;
 };
 
+
+
+Object::Object(int n_vertex, const float* pos) : n_vertex(n_vertex) {
+	GLuint VertexArrayID;
+	glGenVertexArrays(1, &VertexArrayID);
+	glBindVertexArray(VertexArrayID);
+	
+	glGenBuffers(1, &vertexbuffer);
+	glBindBuffer(GL_ARRAY_BUFFER, vertexbuffer);
+	glBufferData(GL_ARRAY_BUFFER, n_vertex * 3 * sizeof(float), pos, GL_STATIC_DRAW);
+}
+
 void Object::render() {
-	glMatrixMode(GL_MODELVIEW);
-	glLoadIdentity();
-
-	glRotatef((float) glfwGetTime() * 50.f, 0.f, 0.f, 1.f);
-
 	// 1rst attribute buffer : vertices
 	glEnableVertexAttribArray(0);
 	glBindBuffer(GL_ARRAY_BUFFER, vertexbuffer);
@@ -44,36 +53,10 @@ void Object::render() {
 		);
 
 	// Draw the triangle !
-	glDrawArrays(GL_TRIANGLES, 0, 3); // Starting from vertex 0; 3 vertices total -> 1 triangle
+	glDrawArrays(GL_TRIANGLES, 0, n_vertex);
 
 	glDisableVertexAttribArray(0);
 }
-
-Object::Object() {
-	GLuint VertexArrayID;
-	glGenVertexArrays(1, &VertexArrayID);
-	glBindVertexArray(VertexArrayID);
-
-	static const GLfloat g_vertex_buffer_data[] = {
-		-1.0f, -1.0f, 0.0f,
-		1.0f, -1.0f, 0.0f,
-		0.0f,  1.0f, 0.0f,
-	};
-
-
-	// This will identify our vertex buffer
-	
-
-	// Generate 1 buffer, put the resulting identifier in vertexbuffer
-	glGenBuffers(1, &vertexbuffer);
-
-	// The following commands will talk about our 'vertexbuffer' buffer
-	glBindBuffer(GL_ARRAY_BUFFER, vertexbuffer);
-
-	// Give our vertices to OpenGL.
-	glBufferData(GL_ARRAY_BUFFER, sizeof(g_vertex_buffer_data), g_vertex_buffer_data, GL_STATIC_DRAW);
-}
-
 
 class Scene {
 public:
@@ -93,6 +76,149 @@ void Scene::render() {
 }
 
 
+
+// TODO: program leaks (in OpenGL context).
+class Shader {
+public:
+	Shader();
+	Shader(const char* vertex_file_path, const char* fragment_file_path);
+	~Shader();
+
+	void setUniform(std::string variable, GLint value);
+	void setUniform(std::string variable, float v0, float v1);
+	void setUniform(std::string variable, float v0, float v1, float v2, float v3);
+
+	void use();
+private:
+	bool initialized;
+	GLuint program;
+};
+
+Shader::Shader() : initialized(false) {
+}
+
+Shader::~Shader() {
+	std::cout << "Destroying shader (not implemented)" << std::endl;
+}
+
+Shader::Shader(const char* vertex_file_path, const char* fragment_file_path) : initialized(false) {
+	// Create the shaders
+	GLuint VertexShaderID = glCreateShader(GL_VERTEX_SHADER);
+	GLuint FragmentShaderID = glCreateShader(GL_FRAGMENT_SHADER);
+
+	// Read the Vertex Shader code from the file
+	std::string VertexShaderCode;
+	std::ifstream VertexShaderStream(vertex_file_path, std::ios::in);
+	if(VertexShaderStream.is_open())
+	{
+	    std::string Line = "";
+	    while(getline(VertexShaderStream, Line))
+	        VertexShaderCode += "\n" + Line;
+	    VertexShaderStream.close();
+	}
+
+	// Read the Fragment Shader code from the file
+	std::string FragmentShaderCode;
+	std::ifstream FragmentShaderStream(fragment_file_path, std::ios::in);
+	if(FragmentShaderStream.is_open()){
+	    std::string Line = "";
+	    while(getline(FragmentShaderStream, Line))
+	        FragmentShaderCode += "\n" + Line;
+	    FragmentShaderStream.close();
+	}
+
+	GLint Result = GL_FALSE;
+	int InfoLogLength;
+
+	// Compile Vertex Shader
+	printf("Compiling shader : %s\n", vertex_file_path);
+	char const * VertexSourcePointer = VertexShaderCode.c_str();
+	glShaderSource(VertexShaderID, 1, &VertexSourcePointer , NULL);
+	glCompileShader(VertexShaderID);
+
+	// Check Vertex Shader
+	glGetShaderiv(VertexShaderID, GL_COMPILE_STATUS, &Result);
+	glGetShaderiv(VertexShaderID, GL_INFO_LOG_LENGTH, &InfoLogLength);
+	std::vector<char> VertexShaderErrorMessage(InfoLogLength);
+	glGetShaderInfoLog(VertexShaderID, InfoLogLength, NULL, &VertexShaderErrorMessage[0]);
+	fprintf(stdout, "%s\n", &VertexShaderErrorMessage[0]);
+
+	// Compile Fragment Shader
+	printf("Compiling shader : %s\n", fragment_file_path);
+	char const * FragmentSourcePointer = FragmentShaderCode.c_str();
+	glShaderSource(FragmentShaderID, 1, &FragmentSourcePointer , NULL);
+	glCompileShader(FragmentShaderID);
+
+	// Check Fragment Shader
+	glGetShaderiv(FragmentShaderID, GL_COMPILE_STATUS, &Result);
+	glGetShaderiv(FragmentShaderID, GL_INFO_LOG_LENGTH, &InfoLogLength);
+	std::vector<char> FragmentShaderErrorMessage(InfoLogLength);
+	glGetShaderInfoLog(FragmentShaderID, InfoLogLength, NULL, &FragmentShaderErrorMessage[0]);
+	fprintf(stdout, "%s\n", &FragmentShaderErrorMessage[0]);
+
+	// Link the program
+	fprintf(stdout, "Linking program\n");
+	GLuint ProgramID = glCreateProgram();
+	glAttachShader(ProgramID, VertexShaderID);
+	glAttachShader(ProgramID, FragmentShaderID);
+	glLinkProgram(ProgramID);
+
+	// Check the program
+	glGetProgramiv(ProgramID, GL_LINK_STATUS, &Result);
+	glGetProgramiv(ProgramID, GL_INFO_LOG_LENGTH, &InfoLogLength);
+	std::vector<char> ProgramErrorMessage( std::max(InfoLogLength, int(1)) );
+	glGetProgramInfoLog(ProgramID, InfoLogLength, NULL, &ProgramErrorMessage[0]);
+	fprintf(stdout, "%s\n", &ProgramErrorMessage[0]);
+
+	glDeleteShader(VertexShaderID);
+	glDeleteShader(FragmentShaderID);
+
+	program = ProgramID;
+	initialized = true;
+}
+
+void Shader::setUniform(std::string variable, GLint value) {
+	const GLint shader_variable = glGetUniformLocation(program, variable.c_str());
+	if(shader_variable < 0) {
+		throw "Variable in shader \"" + variable + "\" not found or removed due to lack of use";
+	}
+	glUniform1i(shader_variable, value);
+}
+
+void Shader::setUniform(std::string variable, float v0, float v1) {
+	const GLint shader_variable = glGetUniformLocation(program, variable.c_str());
+	if(shader_variable < 0) {
+		throw "Variable in shader \"" + variable + "\" not found or removed due to lack of use";
+	}
+	glUniform2f(shader_variable, v0, v1);
+}
+
+void Shader::setUniform(std::string variable, float v0, float v1, float v2, float v3) {
+	const GLint shader_variable = glGetUniformLocation(program, variable.c_str());
+	if(shader_variable < 0) {
+		throw "Variable in shader \"" + variable + "\" not found or removed due to lack of use";
+	}
+	glUniform4f(shader_variable, v0, v1, v2, v3);
+}
+
+
+void Shader::use() {
+	if(initialized) {
+		glUseProgram(program);
+	} else {
+		throw "Uninitialized shader";
+	}
+}
+
+
+void enableExtensions() {
+	GLenum err = glewInit();
+	if(GLEW_OK != err) {
+		throw glewGetErrorString(err);
+	}
+}
+
+
 class Application {
 public:
 	Application();
@@ -104,101 +230,34 @@ protected:
 	void init();
 	std::pair<OVR::Matrix4f, OVR::Matrix4f> calcHMDProjection();
 
+	void usePreBuffer();
+	void useBackBuffer();
+	
 private:
+	GLuint FramebufferName;
+	GLuint renderedTexture;
+
 	OVR::HMDInfo hmd;
 	Scene scene;
 
-	GLuint programID;
+	Shader standard_shader;  // TODO: this is unsafe! (state of initialization is unknown. also copiable)
+	Shader warp_shader;
+
 	GLFWwindow* window;
+
+	
 };
-
-void enableExtensions() {
-	GLenum err = glewInit();
-	if(GLEW_OK != err) {
-		throw glewGetErrorString(err);
-	}
-}
-
-GLuint LoadShaders(const char * vertex_file_path,const char * fragment_file_path){
- 
-    // Create the shaders
-    GLuint VertexShaderID = glCreateShader(GL_VERTEX_SHADER);
-    GLuint FragmentShaderID = glCreateShader(GL_FRAGMENT_SHADER);
- 
-    // Read the Vertex Shader code from the file
-    std::string VertexShaderCode;
-    std::ifstream VertexShaderStream(vertex_file_path, std::ios::in);
-    if(VertexShaderStream.is_open())
-    {
-        std::string Line = "";
-        while(getline(VertexShaderStream, Line))
-            VertexShaderCode += "\n" + Line;
-        VertexShaderStream.close();
-    }
- 
-    // Read the Fragment Shader code from the file
-    std::string FragmentShaderCode;
-    std::ifstream FragmentShaderStream(fragment_file_path, std::ios::in);
-    if(FragmentShaderStream.is_open()){
-        std::string Line = "";
-        while(getline(FragmentShaderStream, Line))
-            FragmentShaderCode += "\n" + Line;
-        FragmentShaderStream.close();
-    }
- 
-    GLint Result = GL_FALSE;
-    int InfoLogLength;
- 
-    // Compile Vertex Shader
-    printf("Compiling shader : %s\n", vertex_file_path);
-    char const * VertexSourcePointer = VertexShaderCode.c_str();
-    glShaderSource(VertexShaderID, 1, &VertexSourcePointer , NULL);
-    glCompileShader(VertexShaderID);
- 
-    // Check Vertex Shader
-    glGetShaderiv(VertexShaderID, GL_COMPILE_STATUS, &Result);
-    glGetShaderiv(VertexShaderID, GL_INFO_LOG_LENGTH, &InfoLogLength);
-    std::vector<char> VertexShaderErrorMessage(InfoLogLength);
-    glGetShaderInfoLog(VertexShaderID, InfoLogLength, NULL, &VertexShaderErrorMessage[0]);
-    fprintf(stdout, "%s\n", &VertexShaderErrorMessage[0]);
- 
-    // Compile Fragment Shader
-    printf("Compiling shader : %s\n", fragment_file_path);
-    char const * FragmentSourcePointer = FragmentShaderCode.c_str();
-    glShaderSource(FragmentShaderID, 1, &FragmentSourcePointer , NULL);
-    glCompileShader(FragmentShaderID);
- 
-    // Check Fragment Shader
-    glGetShaderiv(FragmentShaderID, GL_COMPILE_STATUS, &Result);
-    glGetShaderiv(FragmentShaderID, GL_INFO_LOG_LENGTH, &InfoLogLength);
-    std::vector<char> FragmentShaderErrorMessage(InfoLogLength);
-    glGetShaderInfoLog(FragmentShaderID, InfoLogLength, NULL, &FragmentShaderErrorMessage[0]);
-    fprintf(stdout, "%s\n", &FragmentShaderErrorMessage[0]);
- 
-    // Link the program
-    fprintf(stdout, "Linking program\n");
-    GLuint ProgramID = glCreateProgram();
-    glAttachShader(ProgramID, VertexShaderID);
-    glAttachShader(ProgramID, FragmentShaderID);
-    glLinkProgram(ProgramID);
- 
-    // Check the program
-    glGetProgramiv(ProgramID, GL_LINK_STATUS, &Result);
-    glGetProgramiv(ProgramID, GL_INFO_LOG_LENGTH, &InfoLogLength);
-    std::vector<char> ProgramErrorMessage( std::max(InfoLogLength, int(1)) );
-    glGetProgramInfoLog(ProgramID, InfoLogLength, NULL, &ProgramErrorMessage[0]);
-    fprintf(stdout, "%s\n", &ProgramErrorMessage[0]);
- 
-    glDeleteShader(VertexShaderID);
-    glDeleteShader(FragmentShaderID);
- 
-    return ProgramID;
-}
 
 Application::Application() {
 	init();
 
-	scene.objects.push_back(Object());
+	static const GLfloat g_vertex_buffer_data[] = {
+		-1.0f, -1.0f, -1,
+		1.0f, -1.0f, -1,
+		0.0f,  1.0f, -1,
+	};
+
+	scene.objects.push_back(Object(3, &g_vertex_buffer_data[0]));
 }
 
 std::pair<OVR::Matrix4f, OVR::Matrix4f> Application::calcHMDProjection() {
@@ -231,6 +290,26 @@ std::pair<OVR::Matrix4f, OVR::Matrix4f> Application::calcHMDProjection() {
 	return std::make_pair(viewLeft, viewRight);
 }
 
+void Application::usePreBuffer() {
+	// Set attachment 0.
+
+
+	glBindFramebuffer(GL_FRAMEBUFFER, FramebufferName);
+
+	// Use attachment 0.
+	std::array<GLenum, 1> buffers = {GL_COLOR_ATTACHMENT0};
+	glDrawBuffers(buffers.size(), buffers.data());
+
+	if(glCheckFramebufferStatus(GL_FRAMEBUFFER) != GL_FRAMEBUFFER_COMPLETE) {
+		throw "Failed to set OpenGL frame buffer";
+	}
+}
+
+void Application::useBackBuffer() {
+	glBindFramebuffer(GL_FRAMEBUFFER, 0);
+	glDrawBuffer(GL_BACK);
+}
+
 void Application::init() {
 	if(!glfwInit()) {
 		throw "Failed to initialize GLFW";
@@ -242,7 +321,6 @@ void Application::init() {
 		throw "Failed to create GLFW window";
 	}
 
-	/* Make the window's context current */
 	glfwMakeContextCurrent(window);
 
 
@@ -254,14 +332,12 @@ void Application::init() {
 
 	pHMD->GetDeviceInfo(&hmd);
 
-	/*
 	// OpenGL things
-	GLuint FramebufferName = 0;
+	FramebufferName = 0;
 	glGenFramebuffers(1, &FramebufferName);
 	glBindFramebuffer(GL_FRAMEBUFFER, FramebufferName);
 
 	// The texture we're going to render to
-	GLuint renderedTexture;
 	glGenTextures(1, &renderedTexture);
 
 	// "Bind" the newly created texture : all future texture functions will modify this texture
@@ -284,59 +360,92 @@ void Application::init() {
 	// Set "renderedTexture" as our colour attachement #0
 	glFramebufferTexture(GL_FRAMEBUFFER, GL_COLOR_ATTACHMENT0, renderedTexture, 0);
 
-	// Set the list of draw buffers.
-	GLenum DrawBuffers[1] = {GL_COLOR_ATTACHMENT0};
-	glDrawBuffers(1, DrawBuffers); // "1" is the size of DrawBuffers
-
-	// Always check that our framebuffer is ok
-	if(glCheckFramebufferStatus(GL_FRAMEBUFFER) != GL_FRAMEBUFFER_COMPLETE) {
-		throw "Failed to create OpenGL frame buffer";
-	}
-	*/
-
 	//
-	programID = LoadShaders("base.vs", "base.fs");
+	standard_shader = Shader("base.vs", "base.fs");
+	warp_shader = Shader("warp.vs", "warp.fs");
 }
 
 void Application::run() {
-	/* Loop until the user closes the window */
-	while(!glfwWindowShouldClose(window)) {
-		/* Render here */
-		float ratio;
-		int width, height;
-		// glfwGetFramebufferSize(window, &width, &height);
-		width = 640;
-		height = 400;
+	// rectangle spanning [-1, 1]^2
+	static const GLfloat g_vertex_buffer_data[] = {
+		-1.0f, -1.0f, 0,
+		1.0f, -1.0f, 0,
+		1.0f,  1.0f, 0,
 
-		ratio = width / (float) height;
+		-1.0f, -1.0f, 0,
+		1.0f,  1.0f, 0,
+		-1.0f,  1.0f, 0,
+	};
 
-		// Erase all
-		glClear(GL_COLOR_BUFFER_BIT);
+	Object proxy(6, g_vertex_buffer_data);
+
+	try {
+		while(!glfwWindowShouldClose(window)) {
+			float ratio;
+			int width, height;
+			// glfwGetFramebufferSize(window, &width, &height);
+			width = 640;
+			height = 400;
+
+			ratio = width / (float) height;
+
+			// Erase all
+			usePreBuffer();
+			glClear(GL_COLOR_BUFFER_BIT);
+
+			auto projections = calcHMDProjection();
+
+			// Left eye
+			glViewport(0, 0, width / 2, height);
+			glMatrixMode(GL_PROJECTION);
+			glLoadMatrixf(&projections.first.M[0][0]);
+			standard_shader.use();
+			scene.render();
+
+			// Right eye
+			glViewport(width / 2, 0, width / 2, height);
+			glMatrixMode(GL_PROJECTION);
+			glLoadMatrixf(&projections.second.M[0][0]);
+			standard_shader.use();
+			scene.render();
+
+			// Apply warp shader (framebuffer -> back buffer)
+			glActiveTexture(GL_TEXTURE0);
+			glBindTexture(GL_TEXTURE_2D, renderedTexture);
+
+			useBackBuffer();
+			glViewport(0, 0, width, height);
+
+			warp_shader.use();
+			warp_shader.setUniform("Texture0", 0);
+			warp_shader.setUniform("HmdWarpParam",
+				hmd.DistortionK[0], hmd.DistortionK[1],
+				hmd.DistortionK[2], hmd.DistortionK[3]);
+			warp_shader.setUniform("Scale", 1, 1);
+			warp_shader.setUniform("ScaleIn", 1, 1);
+			warp_shader.setUniform("LensCenter", 0.5, 0.5);
+			warp_shader.setUniform("ScreenCenter", 0.5, 0.5);
 
 
-		auto projections = calcHMDProjection();
+			proxy.render();
 
-		// Left eye
-		glViewport(0, 0, width / 2, height);
-		glMatrixMode(GL_PROJECTION);
-		glLoadMatrixf(&projections.first.M[0][0]);
-		glUseProgram(programID);
-		scene.render();
+			/* Swap front and back buffers */
+			glfwSwapBuffers(window);
 
-		// Right eye
-		glViewport(width / 2, 0, width / 2, height);
-		glMatrixMode(GL_PROJECTION);
-		glLoadMatrixf(&projections.second.M[0][0]);
-		glUseProgram(programID);
-		scene.render();
-
-		/* Swap front and back buffers */
-		glfwSwapBuffers(window);
-
-		/* Poll for and process events */
-		glfwPollEvents();
+			/* Poll for and process events */
+			glfwPollEvents();
+		}
+		
+	} catch(char* exc) {
+		std::cout << "Exception: " << exc << std::endl;
+	} catch(std::string exc) {
+		std::cout << "Exception: " << exc << std::endl;
+	} catch(std::exception& exc) {
+		std::cout << "Exception: " << exc.what() << std::endl;
+	} catch(...) {
+		std::cout << "Unknown exception" << std::endl;
 	}
-
+	
 	glfwTerminate();
 }
 
