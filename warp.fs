@@ -2,6 +2,7 @@
 uniform vec4 HmdWarpParam;
 uniform sampler2D Texture0; // side-by-side images for left and right eyes
 in vec2 oTexCoord;
+layout(location = 0) out vec4 color;
 
 vec2 distortRadial(vec2 theta) {
 	float rSq = theta.x * theta.x + theta.y * theta.y;
@@ -14,15 +15,15 @@ void main() {
 		// left eye
 		vec2 tc = distortRadial(oTexCoord - vec2(-0.5, 0)) + vec2(0.25, 0.5);
 		if(!all(equal(clamp(tc, vec2(0, 0), vec2(0.5, 1)), tc)))
-			gl_FragColor = vec4(0);
+			color = vec4(0);
 		else
-			gl_FragColor = texture2D(Texture0, tc);
+			color = texture2D(Texture0, tc);
 	} else {
 		// right eye
 		vec2 tc = distortRadial(oTexCoord - vec2(0.5, 0)) + vec2(0.75, 0.5);
 		if(!all(equal(clamp(tc, vec2(0.5, 0), vec2(1, 1)), tc)))
-			gl_FragColor = vec4(0);
+			color = vec4(0);
 		else
-			gl_FragColor = texture2D(Texture0, tc);
+			color = texture2D(Texture0, tc);
 	}
 }
