@@ -2,7 +2,7 @@
 import os
 env = Environment(
 	CXX = "clang++",
-	CXXFLAGS = '-std=c++11',
+	CXXFLAGS = '-std=c++11 -g',
 	CCFLAGS = ['-O3'],
 	CPPPATH = [
 		'OculusSDK/LibOVR/Include',
@@ -23,6 +23,7 @@ env.Program(
 		'libboost_thread-mt',
 		'libdl',
 		'libGL',
+		'libGLEW',
 		'libglfw',
 		'libovr',
 		'libpthread',
