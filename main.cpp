@@ -1,6 +1,7 @@
 #include <array>
 #include <fstream>
 #include <iostream>
+#include <memory>
 #include <string>
 #include <vector>
 
@@ -87,8 +88,11 @@ public:
 	void setUniform(std::string variable, GLint value);
 	void setUniform(std::string variable, float v0, float v1);
 	void setUniform(std::string variable, float v0, float v1, float v2, float v3);
+	void setUniformMat4(std::string variable, float* pv);
 
 	void use();
+protected:
+	GLint getVariable(const std::string& variable);
 private:
 	bool initialized;
 	GLuint program;
@@ -177,28 +181,28 @@ Shader::Shader(const char* vertex_file_path, const char* fragment_file_path) : i
 	initialized = true;
 }
 
-void Shader::setUniform(std::string variable, GLint value) {
+GLint Shader::getVariable(const std::string& variable) {
 	const GLint shader_variable = glGetUniformLocation(program, variable.c_str());
 	if(shader_variable < 0) {
 		throw "Variable in shader \"" + variable + "\" not found or removed due to lack of use";
 	}
-	glUniform1i(shader_variable, value);
+	return shader_variable;
+}
+
+void Shader::setUniform(std::string variable, GLint value) {
+	glUniform1i(getVariable(variable), value);
 }
 
 void Shader::setUniform(std::string variable, float v0, float v1) {
-	const GLint shader_variable = glGetUniformLocation(program, variable.c_str());
-	if(shader_variable < 0) {
-		throw "Variable in shader \"" + variable + "\" not found or removed due to lack of use";
-	}
-	glUniform2f(shader_variable, v0, v1);
+	glUniform2f(getVariable(variable), v0, v1);
 }
 
 void Shader::setUniform(std::string variable, float v0, float v1, float v2, float v3) {
-	const GLint shader_variable = glGetUniformLocation(program, variable.c_str());
-	if(shader_variable < 0) {
-		throw "Variable in shader \"" + variable + "\" not found or removed due to lack of use";
-	}
-	glUniform4f(shader_variable, v0, v1, v2, v3);
+	glUniform4f(getVariable(variable), v0, v1, v2, v3);
+}
+
+void Shader::setUniformMat4(std::string variable, float* pv) {
+	glUniformMatrix4fv(getVariable(variable), 1, GL_FALSE, pv);
 }
 
 
@@ -244,8 +248,8 @@ private:
 	Shader warp_shader;
 
 	GLFWwindow* window;
-
-	
+	std::unique_ptr<OVR::SensorFusion> sensor_fusion;
+	OVR::Ptr<OVR::SensorDevice> pSensor;
 };
 
 Application::Application() {
@@ -287,7 +291,12 @@ std::pair<OVR::Matrix4f, OVR::Matrix4f> Application::calcHMDProjection() {
 	OVR::Matrix4f viewLeft = OVR::Matrix4f::Translation(halfIPD, 0, 0) * viewCenter;
 	OVR::Matrix4f viewRight = OVR::Matrix4f::Translation(-halfIPD, 0, 0) * viewCenter;
 
-	return std::make_pair(viewLeft, viewRight);
+
+	// Get head rotation.
+	OVR::Quatf hmdOrient = sensor_fusion->GetOrientation();
+	OVR::Matrix4f hmdMat(hmdOrient);
+
+	return std::make_pair(projLeft * viewLeft * hmdMat, projRight * viewRight * hmdMat);
 }
 
 void Application::usePreBuffer() {
@@ -332,6 +341,14 @@ void Application::init() {
 
 	pHMD->GetDeviceInfo(&hmd);
 
+	
+	pSensor = *pHMD->GetSensor();
+
+	sensor_fusion.reset(new OVR::SensorFusion());
+	if(pSensor) {
+		sensor_fusion->AttachToSensor(pSensor);
+	}
+
 	// OpenGL things
 	FramebufferName = 0;
 	glGenFramebuffers(1, &FramebufferName);
@@ -344,7 +361,7 @@ void Application::init() {
 	glBindTexture(GL_TEXTURE_2D, renderedTexture);
 
 	// Give an empty image to OpenGL ( the last "0" )
-	glTexImage2D(GL_TEXTURE_2D, 0,GL_RGB, 1024, 768, 0,GL_RGB, GL_UNSIGNED_BYTE, 0);
+	glTexImage2D(GL_TEXTURE_2D, 0,GL_RGB, 1280, 800, 0,GL_RGB, GL_UNSIGNED_BYTE, 0);
 
 	// Poor filtering. Needed !
 	glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_NEAREST);
@@ -354,7 +371,7 @@ void Application::init() {
 	GLuint depthrenderbuffer;
 	glGenRenderbuffers(1, &depthrenderbuffer);
 	glBindRenderbuffer(GL_RENDERBUFFER, depthrenderbuffer);
-	glRenderbufferStorage(GL_RENDERBUFFER, GL_DEPTH_COMPONENT, 1024, 768);
+	glRenderbufferStorage(GL_RENDERBUFFER, GL_DEPTH_COMPONENT, 1280, 800);
 	glFramebufferRenderbuffer(GL_FRAMEBUFFER, GL_DEPTH_ATTACHMENT, GL_RENDERBUFFER, depthrenderbuffer);
 
 	// Set "renderedTexture" as our colour attachement #0
@@ -381,14 +398,6 @@ void Application::run() {
 
 	try {
 		while(!glfwWindowShouldClose(window)) {
-			float ratio;
-			int width, height;
-			// glfwGetFramebufferSize(window, &width, &height);
-			width = 640;
-			height = 400;
-
-			ratio = width / (float) height;
-
 			// Erase all
 			usePreBuffer();
 			glClear(GL_COLOR_BUFFER_BIT);
@@ -396,36 +405,34 @@ void Application::run() {
 			auto projections = calcHMDProjection();
 
 			// Left eye
+			const int width = 1280;
+			const int height = 800;
 			glViewport(0, 0, width / 2, height);
-			glMatrixMode(GL_PROJECTION);
-			glLoadMatrixf(&projections.first.M[0][0]);
 			standard_shader.use();
+			standard_shader.setUniformMat4("world_to_screen", &projections.first.M[0][0]);
 			scene.render();
 
 			// Right eye
 			glViewport(width / 2, 0, width / 2, height);
-			glMatrixMode(GL_PROJECTION);
-			glLoadMatrixf(&projections.second.M[0][0]);
 			standard_shader.use();
+			standard_shader.setUniformMat4("world_to_screen", &projections.second.M[0][0]);
 			scene.render();
 
 			// Apply warp shader (framebuffer -> back buffer)
+			const int screen_width = 640;
+			const int screen_height = 400;
+
 			glActiveTexture(GL_TEXTURE0);
 			glBindTexture(GL_TEXTURE_2D, renderedTexture);
 
 			useBackBuffer();
-			glViewport(0, 0, width, height);
+			glViewport(0, 0, screen_width, screen_height);
 
 			warp_shader.use();
 			warp_shader.setUniform("Texture0", 0);
 			warp_shader.setUniform("HmdWarpParam",
 				hmd.DistortionK[0], hmd.DistortionK[1],
 				hmd.DistortionK[2], hmd.DistortionK[3]);
-			warp_shader.setUniform("Scale", 1, 1);
-			warp_shader.setUniform("ScaleIn", 1, 1);
-			warp_shader.setUniform("LensCenter", 0.5, 0.5);
-			warp_shader.setUniform("ScreenCenter", 0.5, 0.5);
-
 
 			proxy.render();
 
