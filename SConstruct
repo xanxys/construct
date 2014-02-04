@@ -5,10 +5,10 @@ env = Environment(
 	CXXFLAGS = '-std=c++11 -g',
 	CCFLAGS = ['-O3'],
 	CPPPATH = [
-		'OculusSDK/LibOVR/Include',
+		'LibOVR/Include',
 	],
 	LIBPATH = [
-		'OculusSDK/LibOVR/Lib/Linux/Release/x86_64',
+		'LibOVR/Lib/Linux/Release/x86_64',
 	])
 env['ENV']['TERM'] = os.environ['TERM']
 
