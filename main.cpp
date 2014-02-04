@@ -202,7 +202,7 @@ void Shader::setUniform(std::string variable, float v0, float v1, float v2, floa
 }
 
 void Shader::setUniformMat4(std::string variable, float* pv) {
-	glUniformMatrix4fv(getVariable(variable), 1, GL_FALSE, pv);
+	glUniformMatrix4fv(getVariable(variable), 1, GL_TRUE, pv);
 }
 
 
@@ -234,7 +234,7 @@ protected:
 	void init(bool windowed);
 	GLFWmonitor* findHMDMonitor(std::string name, int px, int py);
 
-	std::pair<OVR::Matrix4f, OVR::Matrix4f> calcHMDProjection();
+	std::pair<OVR::Matrix4f, OVR::Matrix4f> calcHMDProjection(float scale);
 
 	void usePreBuffer();
 	void useBackBuffer();
@@ -260,22 +260,38 @@ private:
 Application::Application(bool windowed) {
 	init(windowed);
 
-	static const GLfloat g_vertex_buffer_data[] = {
-		-1.0f, -1.0f, -1,
-		1.0f, -1.0f, -1,
-		0.0f,  1.0f, -1,
-	};
+	// Tiles
+	for(int i = -5; i <= 5; i++) {
+		for(int j = -5; j <= 5; j++) {
+			GLfloat g_vertex_buffer_data[] = {
+				-0.45f, -0.45f, 0,
+				0.45f, -0.45f, 0,
+				0.45f,  0.45f, 0,
 
-	scene.objects.push_back(Object(3, &g_vertex_buffer_data[0]));
+				-0.45f, -0.45f, 0,
+				0.45f,  0.45f, 0,
+				-0.45f, 0.45f, 0,
+			};
+
+			for(int k = 0; k < 6; k++) {
+				g_vertex_buffer_data[k * 3 + 0] += i;
+				g_vertex_buffer_data[k * 3 + 1] += j;
+			}
+
+			scene.objects.push_back(Object(6, &g_vertex_buffer_data[0]));
+		}
+	}
+	
 }
 
-std::pair<OVR::Matrix4f, OVR::Matrix4f> Application::calcHMDProjection() {
+std::pair<OVR::Matrix4f, OVR::Matrix4f> Application::calcHMDProjection(float scale) {
+
 	// Compute Aspect Ratio. Stereo mode cuts width in half.
 	const float aspectRatio = float(hmd.HResolution * 0.5f) / float(hmd.VResolution);
 
 	// Compute Vertical FOV based on distance.
 	const float halfScreenDistance = (hmd.VScreenSize / 2);
-	const float yfov = 2.0f * atan(halfScreenDistance / hmd.EyeToScreenDistance);
+	const float yfov = 2.0f * atan(scale * halfScreenDistance / hmd.EyeToScreenDistance);
 
 	// Post-projection viewport coordinates range from (-1.0, 1.0), with the
 	// center of the left viewport falling at (1/4) of horizontal screen size.
@@ -287,7 +303,7 @@ std::pair<OVR::Matrix4f, OVR::Matrix4f> Application::calcHMDProjection() {
 	const float projectionCenterOffset = 4.0f * eyeProjectionShift / hmd.HScreenSize;
 
 	// Projection matrix for the "center eye", which the left/right matrices are based on.
-	OVR::Matrix4f projCenter = OVR::Matrix4f::PerspectiveRH(yfov, aspectRatio, 0.3f, 1000.0f);
+	OVR::Matrix4f projCenter = OVR::Matrix4f::PerspectiveRH(yfov, aspectRatio, 0.1f, 100.0f);
 	OVR::Matrix4f projLeft = OVR::Matrix4f::Translation(projectionCenterOffset, 0, 0) * projCenter;
 	OVR::Matrix4f projRight = OVR::Matrix4f::Translation(-projectionCenterOffset, 0, 0) * projCenter;
 
@@ -299,9 +315,18 @@ std::pair<OVR::Matrix4f, OVR::Matrix4f> Application::calcHMDProjection() {
 
 	// Get head rotation.
 	OVR::Quatf hmdOrient = sensor_fusion->GetOrientation();
-	OVR::Matrix4f hmdMat(hmdOrient);
+	OVR::Matrix4f hmdMat(hmdOrient.Inverted());
 
-	return std::make_pair(projLeft * viewLeft * hmdMat, projRight * viewRight * hmdMat);
+	// TODO: i dont know why this is needed
+	hmdMat = OVR::Matrix4f::Scaling(1, 1, -1) * hmdMat;
+
+	OVR::Matrix4f world = 
+		OVR::Matrix4f::RotationX(OVR::Math<double>::Pi * 0.5) *
+		OVR::Matrix4f::Translation(0, 0, -1.4);
+
+	return std::make_pair(
+		projLeft * viewLeft * hmdMat * world,
+		projRight * viewRight * hmdMat *  world);
 }
 
 void Application::usePreBuffer() {
@@ -461,17 +486,38 @@ void Application::run() {
 
 	Object proxy(6, g_vertex_buffer_data);
 
+	const bool no_distortion = true;
+
 	try {
 		while(!glfwWindowShouldClose(window)) {
+			OVR::Util::Render::DistortionConfig distortion(
+				hmd.DistortionK[0], hmd.DistortionK[1],
+				hmd.DistortionK[2], hmd.DistortionK[3]);
+
+			const float lens_center = 
+				1 - 2 * hmd.LensSeparationDistance / hmd.HScreenSize;
+
+			const float scale = distortion.DistortionFn(-1 - lens_center);
+			std::cout << "K" << lens_center << " : " << scale << std::endl;
+
 			// Erase all
-			usePreBuffer();
+			if(no_distortion) {
+				useBackBuffer();
+			} else {
+				usePreBuffer();
+			}
+			glClearColor(0.05, 0, 0.3, 1);
 			glClear(GL_COLOR_BUFFER_BIT);
 
-			auto projections = calcHMDProjection();
+			auto projections = calcHMDProjection(scale);
+			int width = 640;
+			int height = 800;
+			if(no_distortion) {
+				width = screen_width;
+				height = screen_height;
+			}
 
 			// Left eye
-			const int width = 1280;
-			const int height = 800;
 			glViewport(0, 0, width / 2, height);
 			standard_shader.use();
 			standard_shader.setUniformMat4("world_to_screen", &projections.first.M[0][0]);
@@ -484,24 +530,23 @@ void Application::run() {
 			scene.render();
 
 			// Apply warp shader (framebuffer -> back buffer)
-			glActiveTexture(GL_TEXTURE0);
-			glBindTexture(GL_TEXTURE_2D, renderedTexture);
+			if(!no_distortion) {
+				glActiveTexture(GL_TEXTURE0);
+				glBindTexture(GL_TEXTURE_2D, renderedTexture);
 
-			useBackBuffer();
-			glViewport(0, 0, screen_width, screen_height);
+				useBackBuffer();
+				glViewport(0, 0, screen_width, screen_height);
 
-			const float lens_center = 
-				1 - 2 * hmd.LensSeparationDistance / hmd.HScreenSize;
+				warp_shader.use();
+				warp_shader.setUniform("Texture0", 0);
+				warp_shader.setUniform("HmdWarpParam",
+					hmd.DistortionK[0], hmd.DistortionK[1],
+					hmd.DistortionK[2], hmd.DistortionK[3]);
+				warp_shader.setUniform("LensCenter", lens_center, 0);
+				warp_shader.setUniform("ScaleOut", scale, scale);
 
-			warp_shader.use();
-			warp_shader.setUniform("Texture0", 0);
-			warp_shader.setUniform("HmdWarpParam",
-				hmd.DistortionK[0], hmd.DistortionK[1],
-				hmd.DistortionK[2], hmd.DistortionK[3]);
-			warp_shader.setUniform("LensCenter",
-				lens_center, 0);
-
-			proxy.render();
+				proxy.render();
+			}
 
 			/* Swap front and back buffers */
 			glfwSwapBuffers(window);
