@@ -86,6 +86,7 @@ public:
 	~Shader();
 
 	void setUniform(std::string variable, GLint value);
+	void setUniform(std::string variable, float v0);
 	void setUniform(std::string variable, float v0, float v1);
 	void setUniform(std::string variable, float v0, float v1, float v2, float v3);
 	void setUniformMat4(std::string variable, float* pv);
@@ -193,6 +194,10 @@ void Shader::setUniform(std::string variable, GLint value) {
 	glUniform1i(getVariable(variable), value);
 }
 
+void Shader::setUniform(std::string variable, float v0) {
+	glUniform1f(getVariable(variable), v0);
+}
+
 void Shader::setUniform(std::string variable, float v0, float v1) {
 	glUniform2f(getVariable(variable), v0, v1);
 }
@@ -232,6 +237,10 @@ public:
 
 protected:
 	void init(bool windowed);
+
+	// Update everything, and draw final image to the back buffer.
+	void step();
+
 	GLFWmonitor* findHMDMonitor(std::string name, int px, int py);
 
 	std::pair<OVR::Matrix4f, OVR::Matrix4f> calcHMDProjection(float scale);
@@ -255,6 +264,11 @@ private:
 
 	int screen_width;
 	int screen_height;
+
+	int buffer_width;
+	int buffer_height;
+
+	std::unique_ptr<Object> proxy;
 };
 
 Application::Application(bool windowed) {
@@ -419,6 +433,8 @@ void Application::init(bool windowed) {
 		screen_width = hmd.HResolution;
 		screen_height = hmd.VResolution;
 	}
+	buffer_width = screen_width * 2;
+	buffer_height  = screen_height * 2;
 	
 	window = glfwCreateWindow(screen_width, screen_height, "Construct", windowed ? nullptr : findHMDMonitor(hmd.DisplayDeviceName, hmd.DesktopX, hmd.DesktopY), NULL);
 	if(!window) {
@@ -451,7 +467,7 @@ void Application::init(bool windowed) {
 	glBindTexture(GL_TEXTURE_2D, renderedTexture);
 
 	// Give an empty image to OpenGL ( the last "0" )
-	glTexImage2D(GL_TEXTURE_2D, 0,GL_RGB, 1280, 800, 0,GL_RGB, GL_UNSIGNED_BYTE, 0);
+	glTexImage2D(GL_TEXTURE_2D, 0,GL_RGB, buffer_width, buffer_height, 0,GL_RGB, GL_UNSIGNED_BYTE, 0);
 
 	// Poor filtering. Needed !
 	glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_NEAREST);
@@ -461,7 +477,7 @@ void Application::init(bool windowed) {
 	GLuint depthrenderbuffer;
 	glGenRenderbuffers(1, &depthrenderbuffer);
 	glBindRenderbuffer(GL_RENDERBUFFER, depthrenderbuffer);
-	glRenderbufferStorage(GL_RENDERBUFFER, GL_DEPTH_COMPONENT, 1280, 800);
+	glRenderbufferStorage(GL_RENDERBUFFER, GL_DEPTH_COMPONENT, buffer_width, buffer_height);
 	glFramebufferRenderbuffer(GL_FRAMEBUFFER, GL_DEPTH_ATTACHMENT, GL_RENDERBUFFER, depthrenderbuffer);
 
 	// Set "renderedTexture" as our colour attachement #0
@@ -472,86 +488,98 @@ void Application::init(bool windowed) {
 	warp_shader = Shader("warp.vs", "warp.fs");
 }
 
-void Application::run() {
+void Application::step() {
 	// rectangle spanning [-1, 1]^2
-	static const GLfloat g_vertex_buffer_data[] = {
-		-1.0f, -1.0f, 0,
-		1.0f, -1.0f, 0,
-		1.0f,  1.0f, 0,
+	if(!proxy) {
+		const GLfloat g_vertex_buffer_data[] = {
+			-1.0f, -1.0f, 0,
+			1.0f, -1.0f, 0,
+			1.0f,  1.0f, 0,
 
-		-1.0f, -1.0f, 0,
-		1.0f,  1.0f, 0,
-		-1.0f,  1.0f, 0,
-	};
+			-1.0f, -1.0f, 0,
+			1.0f,  1.0f, 0,
+			-1.0f,  1.0f, 0,
+		};
 
-	Object proxy(6, g_vertex_buffer_data);
+		proxy.reset(new Object(6, g_vertex_buffer_data));
+	}
+	
 
-	const bool no_distortion = true;
+	const bool use_distortion = true;
 
+	OVR::Util::Render::DistortionConfig distortion(
+		hmd.DistortionK[0], hmd.DistortionK[1],
+		hmd.DistortionK[2], hmd.DistortionK[3]);
+
+	const float lens_center = 
+		1 - 2 * hmd.LensSeparationDistance / hmd.HScreenSize;
+
+	const float scale = distortion.DistortionFn(-1 - lens_center);
+	std::cout << "K" << lens_center << " : " << scale << std::endl;
+
+	// Erase all
+	if(use_distortion) {
+		usePreBuffer();
+	} else {
+		useBackBuffer();
+	}
+	glClearColor(0.05, 0, 0.3, 1);
+	glClear(GL_COLOR_BUFFER_BIT);
+
+	auto projections = calcHMDProjection(scale);
+	const int width = use_distortion ? buffer_width : screen_width;
+	const int height = use_distortion ? buffer_height : screen_height;
+
+	// Left eye
+	glViewport(0, 0, width / 2, height);
+	standard_shader.use();
+	standard_shader.setUniformMat4("world_to_screen", &projections.first.M[0][0]);
+	scene.render();
+
+	// Right eye
+	glViewport(width / 2, 0, width / 2, height);
+	standard_shader.use();
+	standard_shader.setUniformMat4("world_to_screen", &projections.second.M[0][0]);
+	scene.render();
+
+	// Apply warp shader (framebuffer -> back buffer)
+	if(use_distortion) {
+		glActiveTexture(GL_TEXTURE0);
+		glBindTexture(GL_TEXTURE_2D, renderedTexture);
+
+		useBackBuffer();
+		warp_shader.use();
+		warp_shader.setUniform("diffusion", 1.0f / buffer_height);
+		warp_shader.setUniform("Texture0", 0);
+		warp_shader.setUniform("HmdWarpParam",
+			hmd.DistortionK[0], hmd.DistortionK[1],
+			hmd.DistortionK[2], hmd.DistortionK[3]);
+
+		// left
+		glViewport(0, 0, screen_width / 2, screen_height);
+		warp_shader.setUniform("xoffset", 0.0f);
+		warp_shader.setUniform("LensCenter", 0.25, 0.5);
+		warp_shader.setUniform("ScreenCenter", 0.25, 0.5);
+		warp_shader.setUniform("Scale", 1, 1);
+		warp_shader.setUniform("ScaleIn", 1, 1);
+		proxy->render();
+
+		// right
+		glViewport(screen_width / 2, 0, screen_width / 2, screen_height);
+		warp_shader.setUniform("xoffset", 0.5f);
+		warp_shader.setUniform("LensCenter", 0.75, 0.5);
+		warp_shader.setUniform("ScreenCenter", 0.75, 0.5);
+		warp_shader.setUniform("Scale", 1, 1);
+		warp_shader.setUniform("ScaleIn", 1, 1);
+		proxy->render();
+	}
+}
+
+void Application::run() {
 	try {
 		while(!glfwWindowShouldClose(window)) {
-			OVR::Util::Render::DistortionConfig distortion(
-				hmd.DistortionK[0], hmd.DistortionK[1],
-				hmd.DistortionK[2], hmd.DistortionK[3]);
-
-			const float lens_center = 
-				1 - 2 * hmd.LensSeparationDistance / hmd.HScreenSize;
-
-			const float scale = distortion.DistortionFn(-1 - lens_center);
-			std::cout << "K" << lens_center << " : " << scale << std::endl;
-
-			// Erase all
-			if(no_distortion) {
-				useBackBuffer();
-			} else {
-				usePreBuffer();
-			}
-			glClearColor(0.05, 0, 0.3, 1);
-			glClear(GL_COLOR_BUFFER_BIT);
-
-			auto projections = calcHMDProjection(scale);
-			int width = 640;
-			int height = 800;
-			if(no_distortion) {
-				width = screen_width;
-				height = screen_height;
-			}
-
-			// Left eye
-			glViewport(0, 0, width / 2, height);
-			standard_shader.use();
-			standard_shader.setUniformMat4("world_to_screen", &projections.first.M[0][0]);
-			scene.render();
-
-			// Right eye
-			glViewport(width / 2, 0, width / 2, height);
-			standard_shader.use();
-			standard_shader.setUniformMat4("world_to_screen", &projections.second.M[0][0]);
-			scene.render();
-
-			// Apply warp shader (framebuffer -> back buffer)
-			if(!no_distortion) {
-				glActiveTexture(GL_TEXTURE0);
-				glBindTexture(GL_TEXTURE_2D, renderedTexture);
-
-				useBackBuffer();
-				glViewport(0, 0, screen_width, screen_height);
-
-				warp_shader.use();
-				warp_shader.setUniform("Texture0", 0);
-				warp_shader.setUniform("HmdWarpParam",
-					hmd.DistortionK[0], hmd.DistortionK[1],
-					hmd.DistortionK[2], hmd.DistortionK[3]);
-				warp_shader.setUniform("LensCenter", lens_center, 0);
-				warp_shader.setUniform("ScaleOut", scale, scale);
-
-				proxy.render();
-			}
-
-			/* Swap front and back buffers */
+			step();
 			glfwSwapBuffers(window);
-
-			/* Poll for and process events */
 			glfwPollEvents();
 		}
 		

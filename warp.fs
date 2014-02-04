@@ -1,35 +1,32 @@
 #version 330
-uniform vec4 HmdWarpParam;
-uniform sampler2D Texture0; // side-by-side images for left and right eyes
+uniform float diffusion;
 uniform vec2 LensCenter;
-uniform vec2 ScaleOut;
+uniform vec2 ScreenCenter;
+uniform vec2 Scale;
+uniform vec2 ScaleIn;
+uniform vec4 HmdWarpParam;
+uniform sampler2D Texture0;  // side-by-side images for left and right eyes
 in vec2 oTexCoord;
 layout(location = 0) out vec4 color;
 
-vec2 distortRadial(vec2 r, vec2 d) {
-	r -= d;
 
-	float r_sq = r.x * r.x + r.y * r.y;
-	vec2 r_new = r * (HmdWarpParam.x + HmdWarpParam.y * r_sq +
-		HmdWarpParam.z * r_sq * r_sq + HmdWarpParam.w * r_sq * r_sq * r_sq);
-
-	return d + ScaleOut * r_new;
+vec2 HmdWarp(vec2 in01) {
+	vec2  theta = (in01 - LensCenter) * ScaleIn;  // Scale to [-1,1]
+	float rSq = theta.x * theta.x + theta.y * theta.y;
+	vec2  theta1 = theta * (HmdWarpParam.x + HmdWarpParam.y * rSq +
+		HmdWarpParam.z * rSq * rSq + HmdWarpParam.w * rSq * rSq * rSq);
+	return LensCenter + Scale * theta1;
 }
 
+
 void main() {
-	if(oTexCoord.x < 0) {
-		// left eye
-		vec2 tc = distortRadial(oTexCoord - vec2(-0.5, 0), -LensCenter) + vec2(0.25, 0.5);
-		if(!all(equal(clamp(tc, vec2(0, 0), vec2(0.5, 1)), tc)))
-			color = vec4(0);
-		else
-			color = texture2D(Texture0, tc);
-	} else {
-		// right eye
-		vec2 tc = distortRadial(oTexCoord - vec2(0.5, 0), LensCenter) + vec2(0.75, 0.5);
-		if(!all(equal(clamp(tc, vec2(0.5, 0), vec2(1, 1)), tc)))
-			color = vec4(0);
-		else
-			color = texture2D(Texture0, tc);
-	}
+	vec2 tc = HmdWarp(oTexCoord);
+	if(!all(equal(clamp(tc, ScreenCenter-vec2(0.25,0.5), ScreenCenter+vec2(0.25,0.5)), tc)))
+		color = vec4(0);
+	else
+		color = (texture2D(Texture0, tc) +
+			texture2D(Texture0, tc + vec2(diffusion, 0)) +
+			texture2D(Texture0, tc + vec2(-diffusion, 0)) +
+			texture2D(Texture0, tc + vec2(0, diffusion)) +
+			texture2D(Texture0, tc + vec2(0, -diffusion))) / 5;
 }
