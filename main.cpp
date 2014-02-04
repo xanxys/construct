@@ -225,13 +225,13 @@ void enableExtensions() {
 
 class Application {
 public:
-	Application();
+	Application(bool windowed = false);
 
 	// Blocking call to run event loop.
 	void run();
 
 protected:
-	void init();
+	void init(bool windowed);
 	GLFWmonitor* findHMDMonitor(std::string name, int px, int py);
 
 	std::pair<OVR::Matrix4f, OVR::Matrix4f> calcHMDProjection();
@@ -252,10 +252,13 @@ private:
 	GLFWwindow* window;
 	std::unique_ptr<OVR::SensorFusion> sensor_fusion;
 	OVR::Ptr<OVR::SensorDevice> pSensor;
+
+	int screen_width;
+	int screen_height;
 };
 
-Application::Application() {
-	init();
+Application::Application(bool windowed) {
+	init(windowed);
 
 	static const GLfloat g_vertex_buffer_data[] = {
 		-1.0f, -1.0f, -1,
@@ -369,7 +372,7 @@ GLFWmonitor* Application::findHMDMonitor(std::string name, int px, int py) {
 	return nullptr;
 }
 
-void Application::init() {
+void Application::init(bool windowed) {
 	OVR::System::Init(OVR::Log::ConfigureDefaultLog(OVR::LogMask_All));
 	OVR::Ptr<OVR::DeviceManager> pManager = *OVR::DeviceManager::Create();
 	OVR::Ptr<OVR::HMDDevice> pHMD = *pManager->EnumerateDevices<OVR::HMDDevice>().CreateDevice();
@@ -378,15 +381,21 @@ void Application::init() {
 
 
 	std::cout << "DisplayName: " << hmd.DisplayDeviceName << " at " << hmd.DesktopX << "," << hmd.DesktopY << std::endl;
-
-
 	
 
 	if(!glfwInit()) {
 		throw "Failed to initialize GLFW";
 	}
 
-	window = glfwCreateWindow(1280, 800, "Construct", findHMDMonitor(hmd.DisplayDeviceName, hmd.DesktopX, hmd.DesktopY), NULL);
+	if(windowed) {
+		screen_width = 640;
+		screen_height = 400;
+	} else {
+		screen_width = 1280;
+		screen_height = 800;
+	}
+	
+	window = glfwCreateWindow(screen_width, screen_height, "Construct", windowed ? nullptr : findHMDMonitor(hmd.DisplayDeviceName, hmd.DesktopX, hmd.DesktopY), NULL);
 	if(!window) {
 		glfwTerminate();
 		throw "Failed to create GLFW window";
@@ -475,9 +484,6 @@ void Application::run() {
 			scene.render();
 
 			// Apply warp shader (framebuffer -> back buffer)
-			const int screen_width = 1280;
-			const int screen_height = 800;
-
 			glActiveTexture(GL_TEXTURE0);
 			glBindTexture(GL_TEXTURE_2D, renderedTexture);
 
@@ -512,9 +518,15 @@ void Application::run() {
 	glfwTerminate();
 }
 
-int main() {
-	Application app;
+int main(int argc, char** argv) {
+	bool windowed = false;
+	if(argc == 2 && std::string(argv[1]) == "--window") {
+		windowed = true;
+	}
+
+	Application app(windowed);
 	app.run();
+	
 
 	return 0;
 }
