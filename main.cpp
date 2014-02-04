@@ -232,6 +232,8 @@ public:
 
 protected:
 	void init();
+	GLFWmonitor* findHMDMonitor(std::string name, int px, int py);
+
 	std::pair<OVR::Matrix4f, OVR::Matrix4f> calcHMDProjection();
 
 	void usePreBuffer();
@@ -319,12 +321,72 @@ void Application::useBackBuffer() {
 	glDrawBuffer(GL_BACK);
 }
 
+// Try to find HMD monitor. return nullptr when in doubt (or not connected).
+GLFWmonitor* Application::findHMDMonitor(std::string name, int px, int py) {
+	int count;
+	GLFWmonitor** monitors = glfwGetMonitors(&count);
+
+	// Try to find exact name match.
+	for(int i = 0; i < count; i++) {
+		std::cout << "Checking " << glfwGetMonitorName(monitors[i]) << std::endl;
+		if(glfwGetMonitorName(monitors[i]) == name) {
+			return monitors[i];
+		}
+	}
+
+	// Find 7 inch (150mm x 94mm) display. (TODO: replace it with better method)
+	for(int i = 0; i < count; i++) {
+		int width;
+		int height;
+		glfwGetMonitorPhysicalSize(monitors[i], &width, &height);
+		std::cout << "Checking Size" << width << "," << height << std::endl;
+		
+		if(width == 150 && height == 94) {
+			return monitors[i];
+		}
+	}
+
+	// Find by global display coordinate origin.
+	for(int i = 0; i < count; i++) {
+		int mx;
+		int my;
+		glfwGetMonitorPos(monitors[i], &mx, &my);
+		std::cout << "Checking Pos" << mx << "," << my << std::endl;
+		
+		if(mx == px && my == py) {
+			return monitors[i];
+		}
+	}
+
+	// Find non-primary monitor.
+	for(int i = 0; i < count; i++) {
+		if(glfwGetPrimaryMonitor() != monitors[i]) {
+			return monitors[i];
+		}
+	}
+
+	// We have no idea.
+	return nullptr;
+}
+
 void Application::init() {
+	OVR::System::Init(OVR::Log::ConfigureDefaultLog(OVR::LogMask_All));
+	OVR::Ptr<OVR::DeviceManager> pManager = *OVR::DeviceManager::Create();
+	OVR::Ptr<OVR::HMDDevice> pHMD = *pManager->EnumerateDevices<OVR::HMDDevice>().CreateDevice();
+
+	pHMD->GetDeviceInfo(&hmd);
+
+
+	std::cout << "DisplayName: " << hmd.DisplayDeviceName << " at " << hmd.DesktopX << "," << hmd.DesktopY << std::endl;
+
+
+	
+
 	if(!glfwInit()) {
 		throw "Failed to initialize GLFW";
 	}
 
-	window = glfwCreateWindow(640, 400, "Construct", NULL, NULL);
+	window = glfwCreateWindow(1280, 800, "Construct", findHMDMonitor(hmd.DisplayDeviceName, hmd.DesktopX, hmd.DesktopY), NULL);
 	if(!window) {
 		glfwTerminate();
 		throw "Failed to create GLFW window";
@@ -333,15 +395,9 @@ void Application::init() {
 	glfwMakeContextCurrent(window);
 
 
-	OVR::System::Init(OVR::Log::ConfigureDefaultLog(OVR::LogMask_All));
-	
+
 	enableExtensions();
-	OVR::Ptr<OVR::DeviceManager> pManager = *OVR::DeviceManager::Create();
-	OVR::Ptr<OVR::HMDDevice> pHMD = *pManager->EnumerateDevices<OVR::HMDDevice>().CreateDevice();
 
-	pHMD->GetDeviceInfo(&hmd);
-
-	
 	pSensor = *pHMD->GetSensor();
 
 	sensor_fusion.reset(new OVR::SensorFusion());
@@ -419,8 +475,8 @@ void Application::run() {
 			scene.render();
 
 			// Apply warp shader (framebuffer -> back buffer)
-			const int screen_width = 640;
-			const int screen_height = 400;
+			const int screen_width = 1280;
+			const int screen_height = 800;
 
 			glActiveTexture(GL_TEXTURE0);
 			glBindTexture(GL_TEXTURE_2D, renderedTexture);
