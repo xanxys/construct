@@ -28,6 +28,7 @@ env.Program(
 		'libovr',
 		'libpthread',
 		'libudev',
+		'libv8',
 		'libX11',
 		'libXinerama',
 		])

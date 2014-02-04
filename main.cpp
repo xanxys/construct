@@ -7,6 +7,7 @@
 
 #include <GL/glew.h>
 #include <GL/glfw3.h>
+#include <v8.h>
 
 #include "OVR.h"
 
@@ -273,6 +274,26 @@ private:
 
 Application::Application(bool windowed) {
 	init(windowed);
+	v8::V8::Initialize();
+
+	v8::Isolate* isolate = v8::Isolate::GetCurrent();
+	v8::HandleScope handle_scope;
+
+	
+	// Create a template for the global object.
+	v8::Handle<v8::ObjectTemplate> global = v8::ObjectTemplate::New();
+
+	
+	// TODO: attach native functions to global object.
+	v8::Handle<v8::Context> context = v8::Context::New(nullptr, global); // nullptr, nullptr, global);
+	v8::Context::Scope context_scope(context);
+	
+	v8::Handle<v8::Script> script = v8::Script::Compile(v8::String::New("1+2;"));
+	v8::Handle<v8::Value> result = script->Run();
+	
+	v8::String::AsciiValue ascii(result);
+
+	std::cout << "V8 says: " << *ascii << std::endl;
 
 	// Tiles
 	for(int i = -5; i <= 5; i++) {
