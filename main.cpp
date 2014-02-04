@@ -388,11 +388,11 @@ void Application::init(bool windowed) {
 	}
 
 	if(windowed) {
-		screen_width = 640;
-		screen_height = 400;
+		screen_width = hmd.HResolution / 2;
+		screen_height = hmd.VResolution / 2;
 	} else {
-		screen_width = 1280;
-		screen_height = 800;
+		screen_width = hmd.HResolution;
+		screen_height = hmd.VResolution;
 	}
 	
 	window = glfwCreateWindow(screen_width, screen_height, "Construct", windowed ? nullptr : findHMDMonitor(hmd.DisplayDeviceName, hmd.DesktopX, hmd.DesktopY), NULL);
@@ -490,11 +490,16 @@ void Application::run() {
 			useBackBuffer();
 			glViewport(0, 0, screen_width, screen_height);
 
+			const float lens_center = 
+				1 - 2 * hmd.LensSeparationDistance / hmd.HScreenSize;
+
 			warp_shader.use();
 			warp_shader.setUniform("Texture0", 0);
 			warp_shader.setUniform("HmdWarpParam",
 				hmd.DistortionK[0], hmd.DistortionK[1],
 				hmd.DistortionK[2], hmd.DistortionK[3]);
+			warp_shader.setUniform("LensCenter",
+				lens_center, 0);
 
 			proxy.render();
 
