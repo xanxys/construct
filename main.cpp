@@ -331,11 +331,8 @@ std::pair<OVR::Matrix4f, OVR::Matrix4f> Application::calcHMDProjection(float sca
 	OVR::Quatf hmdOrient = sensor_fusion->GetOrientation();
 	OVR::Matrix4f hmdMat(hmdOrient.Inverted());
 
-	// TODO: i dont know why this is needed
-	hmdMat = OVR::Matrix4f::Scaling(1, 1, -1) * hmdMat;
-
 	OVR::Matrix4f world = 
-		OVR::Matrix4f::RotationX(OVR::Math<double>::Pi * 0.5) *
+		OVR::Matrix4f::RotationX(-OVR::Math<double>::Pi * 0.5) *
 		OVR::Matrix4f::Translation(0, 0, -1.4);
 
 	return std::make_pair(
@@ -514,8 +511,7 @@ void Application::step() {
 	const float lens_center = 
 		1 - 2 * hmd.LensSeparationDistance / hmd.HScreenSize;
 
-	const float scale = distortion.DistortionFn(-1 - lens_center);
-	std::cout << "K" << lens_center << " : " << scale << std::endl;
+	const float scale = 0.9;
 
 	// Erase all
 	if(use_distortion) {
@@ -526,7 +522,7 @@ void Application::step() {
 	glClearColor(0.05, 0, 0.3, 1);
 	glClear(GL_COLOR_BUFFER_BIT);
 
-	auto projections = calcHMDProjection(scale);
+	auto projections = calcHMDProjection(1 / scale);
 	const int width = use_distortion ? buffer_width : screen_width;
 	const int height = use_distortion ? buffer_height : screen_height;
 
@@ -554,23 +550,22 @@ void Application::step() {
 		warp_shader.setUniform("HmdWarpParam",
 			hmd.DistortionK[0], hmd.DistortionK[1],
 			hmd.DistortionK[2], hmd.DistortionK[3]);
+		warp_shader.setUniform("Scale", 0.5f * scale, 0.5f * scale);
+		warp_shader.setUniform("ScaleIn", 2.0f, 2.0f);
 
 		// left
 		glViewport(0, 0, screen_width / 2, screen_height);
 		warp_shader.setUniform("xoffset", 0.0f);
-		warp_shader.setUniform("LensCenter", 0.25, 0.5);
+		warp_shader.setUniform("LensCenter", 0.25 + lens_center / 2, 0.5);
 		warp_shader.setUniform("ScreenCenter", 0.25, 0.5);
-		warp_shader.setUniform("Scale", 1, 1);
-		warp_shader.setUniform("ScaleIn", 1, 1);
 		proxy->render();
 
 		// right
 		glViewport(screen_width / 2, 0, screen_width / 2, screen_height);
 		warp_shader.setUniform("xoffset", 0.5f);
-		warp_shader.setUniform("LensCenter", 0.75, 0.5);
+		warp_shader.setUniform("LensCenter", 0.75 - lens_center / 2, 0.5);
 		warp_shader.setUniform("ScreenCenter", 0.75, 0.5);
-		warp_shader.setUniform("Scale", 1, 1);
-		warp_shader.setUniform("ScaleIn", 1, 1);
+		
 		proxy->render();
 	}
 }
