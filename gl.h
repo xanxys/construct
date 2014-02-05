@@ -23,6 +23,8 @@ public:
 protected:
 	Shader(const char* vertex_file_path, const char* fragment_file_path);
 	GLint getVariable(const std::string& variable);
+
+	std::string getLogFor(GLint id);
 private:
 	GLuint program;
 };
