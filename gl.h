@@ -28,6 +28,7 @@ private:
 	GLuint program;
 };
 
+
 class Texture {
 public:
 	~Texture();

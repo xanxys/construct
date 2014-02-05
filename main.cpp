@@ -2,6 +2,7 @@
 #include <fstream>
 #include <iostream>
 #include <memory>
+#include <numeric>
 #include <string>
 #include <vector>
 
@@ -17,47 +18,67 @@
 // * SSAO (uniform lighting and still look good)
 // * FSAA (remove edge artifacts)
 //
-// Pipeline (no per-object "artistic" settings).
+// Pipeline (no per-Geometry "artistic" settings).
 // everything is fixed at reasonable parameters.
 //
 // G-buffer (pos, normal, albedo) -> 
 
-class Object {
+// Purpose of vertex array is unclear to me. keep it as is (or add helpful comment).
+// Vertex buffer is tabular data, with columns = posx, posy, posz, u, v, for example.
+//
+// An attribute is a bunch of consectuve columns, such as position or texture coordinates.
+class Geometry {
 public:
-	Object(int n_vertex, const float* pos);
+	Geometry(int n_vertex, const float* pos);
 	void render();
+protected:
+	int getColumns();
 private:
 	const int n_vertex;
-	GLuint vertexbuffer;
+	GLuint vertex_array;
+	GLuint vertex_buffer;
+
+	std::vector<int> attributes;
 };
 
-Object::Object(int n_vertex, const float* pos) : n_vertex(n_vertex) {
-	GLuint VertexArrayID;
-	glGenVertexArrays(1, &VertexArrayID);
-	glBindVertexArray(VertexArrayID);
-	
-	glGenBuffers(1, &vertexbuffer);
-	glBindBuffer(GL_ARRAY_BUFFER, vertexbuffer);
-	glBufferData(GL_ARRAY_BUFFER, n_vertex * 3 * sizeof(float), pos, GL_STATIC_DRAW);
+Geometry::Geometry(int n_vertex, const float* pos) : n_vertex(n_vertex) {
+	glGenVertexArrays(1, &vertex_array);
+	glBindVertexArray(vertex_array);
+
+	attributes.push_back(3);
+
+	glGenBuffers(1, &vertex_buffer);
+	glBindBuffer(GL_ARRAY_BUFFER, vertex_buffer);
+	glBufferData(GL_ARRAY_BUFFER, sizeof(float) * n_vertex * getColumns(), pos, GL_STATIC_DRAW);
 }
 
-void Object::render() {
-	// 1rst attribute buffer : vertices
-	glEnableVertexAttribArray(0);
-	glBindBuffer(GL_ARRAY_BUFFER, vertexbuffer);
-	glVertexAttribPointer(
-		0,                  // attribute 0. No particular reason for 0, but must match the layout in the shader.
-		3,                  // size
-		GL_FLOAT,           // type
-		GL_FALSE,           // normalized?
-		0,                  // stride
-		(void*)0            // array buffer offset
-		);
+int Geometry::getColumns() {
+	return std::accumulate(attributes.begin(), attributes.end(), 0);
+}
 
-	// Draw the triangle !
+void Geometry::render() {
+	glBindVertexArray(vertex_array);
+	glBindBuffer(GL_ARRAY_BUFFER, vertex_buffer);
+
+	const int columns = getColumns();
+	int current_offset = 0;
+	for(int i_attrib = 0; i_attrib < attributes.size(); i_attrib++) {
+		glEnableVertexAttribArray(i_attrib);
+		glVertexAttribPointer(
+			i_attrib,
+			attributes[i_attrib],
+			GL_FLOAT,
+			GL_FALSE,
+			sizeof(float) * columns,
+			(void*)(sizeof(float) * current_offset));
+		current_offset += attributes[i_attrib];
+	}
+	
 	glDrawArrays(GL_TRIANGLES, 0, n_vertex);
 
-	glDisableVertexAttribArray(0);
+	for(int i_attrib; i_attrib < attributes.size(); i_attrib++) {
+		glDisableVertexAttribArray(i_attrib);
+	}
 }
 
 
@@ -66,15 +87,15 @@ public:
 	Scene();
 
 	void render();
-	std::vector<Object> objects;
+	std::vector<Geometry> Geometrys;
 };
 
 Scene::Scene() {
 }
 
 void Scene::render() {
-	for(auto& object : objects) {
-		object.render();
+	for(auto& Geometry : Geometrys) {
+		Geometry.render();
 	}
 }
 
@@ -121,7 +142,7 @@ private:
 	int buffer_width;
 	int buffer_height;
 
-	std::unique_ptr<Object> proxy;
+	std::unique_ptr<Geometry> proxy;
 	std::shared_ptr<Texture> pre_buffer;
 };
 
@@ -134,11 +155,11 @@ Application::Application(bool windowed) {
 	v8::HandleScope handle_scope;
 
 	
-	// Create a template for the global object.
+	// Create a template for the global Geometry.
 	v8::Handle<v8::ObjectTemplate> global = v8::ObjectTemplate::New();
 
 	
-	// TODO: attach native functions to global object.
+	// TODO: attach native functions to global Geometry.
 	v8::Handle<v8::Context> context = v8::Context::New(nullptr, global); // nullptr, nullptr, global);
 	v8::Context::Scope context_scope(context);
 	
@@ -167,7 +188,7 @@ Application::Application(bool windowed) {
 				g_vertex_buffer_data[k * 3 + 1] += j;
 			}
 
-			scene.objects.push_back(Object(6, &g_vertex_buffer_data[0]));
+			scene.Geometrys.push_back(Geometry(6, &g_vertex_buffer_data[0]));
 		}
 	}
 
@@ -404,7 +425,7 @@ void Application::init(bool windowed) {
 void Application::step() {
 	// rectangle spanning [-1, 1]^2
 	if(!proxy) {
-		const GLfloat g_vertex_buffer_data[] = {
+		const GLfloat vertex_pos[] = {
 			-1.0f, -1.0f, 0,
 			1.0f, -1.0f, 0,
 			1.0f,  1.0f, 0,
@@ -414,7 +435,7 @@ void Application::step() {
 			-1.0f,  1.0f, 0,
 		};
 
-		proxy.reset(new Object(6, g_vertex_buffer_data));
+		proxy.reset(new Geometry(6, vertex_pos));
 	}
 	
 
