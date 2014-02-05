@@ -1,14 +1,14 @@
 #include "gl.h"
 
-
-Shader::Shader() : initialized(false) {
+std::shared_ptr<Shader> Shader::create(const char* vertex_file_path, const char* fragment_file_path) {
+	return std::shared_ptr<Shader>(new Shader(vertex_file_path, fragment_file_path));
 }
 
 Shader::~Shader() {
-	std::cout << "Destroying shader (not implemented)" << std::endl;
+	glDeleteShader(program);
 }
 
-Shader::Shader(const char* vertex_file_path, const char* fragment_file_path) : initialized(false) {
+Shader::Shader(const char* vertex_file_path, const char* fragment_file_path) {
 	// Create the shaders
 	GLuint VertexShaderID = glCreateShader(GL_VERTEX_SHADER);
 	GLuint FragmentShaderID = glCreateShader(GL_FRAGMENT_SHADER);
@@ -81,7 +81,6 @@ Shader::Shader(const char* vertex_file_path, const char* fragment_file_path) : i
 	glDeleteShader(FragmentShaderID);
 
 	program = ProgramID;
-	initialized = true;
 }
 
 GLint Shader::getVariable(const std::string& variable) {
@@ -114,11 +113,7 @@ void Shader::setUniformMat4(std::string variable, float* pv) {
 
 
 void Shader::use() {
-	if(initialized) {
-		glUseProgram(program);
-	} else {
-		throw "Uninitialized shader";
-	}
+	glUseProgram(program);
 }
 
 

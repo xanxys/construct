@@ -31,8 +31,6 @@ private:
 	GLuint vertexbuffer;
 };
 
-
-
 Object::Object(int n_vertex, const float* pos) : n_vertex(n_vertex) {
 	GLuint VertexArrayID;
 	glGenVertexArrays(1, &VertexArrayID);
@@ -62,6 +60,7 @@ void Object::render() {
 	glDisableVertexAttribArray(0);
 }
 
+
 class Scene {
 public:
 	Scene();
@@ -78,11 +77,6 @@ void Scene::render() {
 		object.render();
 	}
 }
-
-
-
-
-
 
 
 class Application {
@@ -112,8 +106,8 @@ private:
 	OVR::HMDInfo hmd;
 	Scene scene;
 
-	Shader standard_shader;  // TODO: this is unsafe! (state of initialization is unknown. also copiable)
-	Shader warp_shader;
+	std::shared_ptr<Shader> standard_shader;
+	std::shared_ptr<Shader> warp_shader;
 
 	GLFWwindow* window;
 	std::unique_ptr<OVR::SensorFusion> sensor_fusion;
@@ -197,7 +191,6 @@ Application::Application(bool windowed) {
 	cairo_surface_destroy(surf);
 
 }
-
 
 void Application::enableExtensions() {
 	GLenum err = glewInit();
@@ -378,8 +371,8 @@ void Application::init(bool windowed) {
 	glFramebufferTexture(GL_FRAMEBUFFER, GL_COLOR_ATTACHMENT0, pre_buffer->unsafeGetId(), 0);
 
 	//
-	standard_shader = Shader("base.vs", "base.fs");
-	warp_shader = Shader("warp.vs", "warp.fs");
+	standard_shader = Shader::create("base.vs", "base.fs");
+	warp_shader = Shader::create("warp.vs", "warp.fs");
 }
 
 void Application::step() {
@@ -425,14 +418,14 @@ void Application::step() {
 
 	// Left eye
 	glViewport(0, 0, width / 2, height);
-	standard_shader.use();
-	standard_shader.setUniformMat4("world_to_screen", &projections.first.M[0][0]);
+	standard_shader->use();
+	standard_shader->setUniformMat4("world_to_screen", &projections.first.M[0][0]);
 	scene.render();
 
 	// Right eye
 	glViewport(width / 2, 0, width / 2, height);
-	standard_shader.use();
-	standard_shader.setUniformMat4("world_to_screen", &projections.second.M[0][0]);
+	standard_shader->use();
+	standard_shader->setUniformMat4("world_to_screen", &projections.second.M[0][0]);
 	scene.render();
 
 	// Apply warp shader (framebuffer -> back buffer)
@@ -440,27 +433,27 @@ void Application::step() {
 		pre_buffer->useIn(0);
 
 		useBackBuffer();
-		warp_shader.use();
-		warp_shader.setUniform("diffusion", 1.0f / buffer_height);
-		warp_shader.setUniform("Texture0", 0);
-		warp_shader.setUniform("HmdWarpParam",
+		warp_shader->use();
+		warp_shader->setUniform("diffusion", 1.0f / buffer_height);
+		warp_shader->setUniform("Texture0", 0);
+		warp_shader->setUniform("HmdWarpParam",
 			hmd.DistortionK[0], hmd.DistortionK[1],
 			hmd.DistortionK[2], hmd.DistortionK[3]);
-		warp_shader.setUniform("Scale", 0.5f * scale, 0.5f * scale);
-		warp_shader.setUniform("ScaleIn", 2.0f, 2.0f);
+		warp_shader->setUniform("Scale", 0.5f * scale, 0.5f * scale);
+		warp_shader->setUniform("ScaleIn", 2.0f, 2.0f);
 
 		// left
 		glViewport(0, 0, screen_width / 2, screen_height);
-		warp_shader.setUniform("xoffset", 0.0f);
-		warp_shader.setUniform("LensCenter", 0.25 + lens_center / 2, 0.5);
-		warp_shader.setUniform("ScreenCenter", 0.25, 0.5);
+		warp_shader->setUniform("xoffset", 0.0f);
+		warp_shader->setUniform("LensCenter", 0.25 + lens_center / 2, 0.5);
+		warp_shader->setUniform("ScreenCenter", 0.25, 0.5);
 		proxy->render();
 
 		// right
 		glViewport(screen_width / 2, 0, screen_width / 2, screen_height);
-		warp_shader.setUniform("xoffset", 0.5f);
-		warp_shader.setUniform("LensCenter", 0.75 - lens_center / 2, 0.5);
-		warp_shader.setUniform("ScreenCenter", 0.75, 0.5);
+		warp_shader->setUniform("xoffset", 0.5f);
+		warp_shader->setUniform("LensCenter", 0.75 - lens_center / 2, 0.5);
+		warp_shader->setUniform("ScreenCenter", 0.75, 0.5);
 		
 		proxy->render();
 	}
@@ -495,7 +488,6 @@ int main(int argc, char** argv) {
 
 	Application app(windowed);
 	app.run();
-	
 
 	return 0;
 }

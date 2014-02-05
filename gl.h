@@ -8,11 +8,9 @@
 
 #include <GL/glew.h>
 
-// TODO: program leaks (in OpenGL context).
 class Shader {
 public:
-	Shader();
-	Shader(const char* vertex_file_path, const char* fragment_file_path);
+	static std::shared_ptr<Shader> create(const char* vertex_file_path, const char* fragment_file_path);
 	~Shader();
 
 	void setUniform(std::string variable, GLint value);
@@ -23,12 +21,11 @@ public:
 
 	void use();
 protected:
+	Shader(const char* vertex_file_path, const char* fragment_file_path);
 	GLint getVariable(const std::string& variable);
 private:
-	bool initialized;
 	GLuint program;
 };
-
 
 class Texture {
 public:
