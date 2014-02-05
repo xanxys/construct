@@ -190,13 +190,13 @@ Application::Application(bool windowed) {
 	const float q_height = 0.1;
 
 	GLfloat vertex_pos_uv[] = {
-		-1.0f, 0, -1.0f, 0, 0,
-		-1.0f, 0, 1.0f, 0, 1,
-		 1.0f, 0, 1.0f, 1, 1,
+		-1.0f, 0, -1.0f, 0, 1,
+		-1.0f, 0, 1.0f, 0, 0,
+		 1.0f, 0, 1.0f, 1, 0,
 
-		-1.0f, 0, -1.0f, 0, 0,
-		 1.0f, 0, 1.0f, 1, 1,
-		 1.0f, 0, -1.0f, 1, 0,
+		-1.0f, 0, -1.0f, 0, 1,
+		 1.0f, 0, 1.0f, 1, 0,
+		 1.0f, 0, -1.0f, 1, 1,
 	};
 	for(int i = 0; i < 6; i++) {
 		vertex_pos_uv[5 * i + 0] = vertex_pos_uv[5 * i + 0] * 0.5 * q_width;
