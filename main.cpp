@@ -23,12 +23,27 @@
 // G-buffer (pos, normal, albedo) -> 
 
 
+class Object {
+public:
+	Object();
+
+	bool use_blend;
+	std::shared_ptr<Geometry> geometry;
+	std::shared_ptr<Shader> shader;
+
+	// optional
+	std::shared_ptr<Texture> texture;
+};
+
+Object::Object() : use_blend(false) {
+}
+
 class Scene {
 public:
 	Scene();
 
 	void render();
-	std::vector<std::shared_ptr<Geometry>> objects;
+	std::vector<Object> objects;
 };
 
 Scene::Scene() {
@@ -36,7 +51,21 @@ Scene::Scene() {
 
 void Scene::render() {
 	for(auto& object : objects) {
-		object->render();
+		if(object.use_blend) {
+			glEnable(GL_BLEND);
+			glBlendFunc(GL_SRC_ALPHA, GL_ONE);
+		}
+
+		object.shader->use();
+		if(object.texture) {
+			object.texture->useIn(0);
+			object.shader->setUniform("texture", 0);
+		}
+		object.geometry->render();
+
+		if(object.use_blend) {
+			glDisable(GL_BLEND);
+		}
 	}
 }
 
@@ -129,7 +158,10 @@ Application::Application(bool windowed) {
 				g_vertex_buffer_data[k * 3 + 1] += j;
 			}
 
-			scene.objects.push_back(Geometry::createPos(6, &g_vertex_buffer_data[0]));
+			Object obj;
+			obj.shader = standard_shader;
+			obj.geometry = Geometry::createPos(6, &g_vertex_buffer_data[0]);
+			scene.objects.push_back(obj);
 		}
 	}
 
@@ -138,7 +170,7 @@ Application::Application(bool windowed) {
 	auto c_context = cairo_create(surf);
 
 	cairo_select_font_face(c_context, "monospace", CAIRO_FONT_SLANT_NORMAL, CAIRO_FONT_WEIGHT_NORMAL);
-	cairo_set_source_rgb(c_context, 1, 0, 0);
+	cairo_set_source_rgb(c_context, 1, 1, 1);
 
 	cairo_rectangle(c_context, 0, 0, 10, 10);
 	cairo_fill(c_context);
@@ -153,6 +185,31 @@ Application::Application(bool windowed) {
 	cairo_surface_write_to_png(surf, "test.png");
 	cairo_surface_destroy(surf);
 
+
+	const float q_width = 1;
+	const float q_height = 0.1;
+
+	GLfloat vertex_pos_uv[] = {
+		-1.0f, 0, -1.0f, 0, 0,
+		-1.0f, 0, 1.0f, 0, 1,
+		 1.0f, 0, 1.0f, 1, 1,
+
+		-1.0f, 0, -1.0f, 0, 0,
+		 1.0f, 0, 1.0f, 1, 1,
+		 1.0f, 0, -1.0f, 1, 0,
+	};
+	for(int i = 0; i < 6; i++) {
+		vertex_pos_uv[5 * i + 0] = vertex_pos_uv[5 * i + 0] * 0.5 * q_width;
+		vertex_pos_uv[5 * i + 1] = 1;
+		vertex_pos_uv[5 * i + 2] = 1 + vertex_pos_uv[5 * i + 2] * 0.5 * q_height;
+	}
+
+	Object obj;
+	obj.shader = texture_shader;
+	obj.geometry = Geometry::createPosUV(6, vertex_pos_uv);
+	obj.texture = tex;
+	obj.use_blend = true;
+	scene.objects.push_back(obj);
 }
 
 std::shared_ptr<Texture> Application::createTextureFromSurface(cairo_surface_t* surface) {
@@ -408,12 +465,16 @@ void Application::step() {
 	glViewport(0, 0, width / 2, height);
 	standard_shader->use();
 	standard_shader->setUniformMat4("world_to_screen", &projections.first.M[0][0]);
+	texture_shader->use();
+	texture_shader->setUniformMat4("world_to_screen", &projections.first.M[0][0]);
 	scene.render();
 
 	// Right eye
 	glViewport(width / 2, 0, width / 2, height);
 	standard_shader->use();
 	standard_shader->setUniformMat4("world_to_screen", &projections.second.M[0][0]);
+	texture_shader->use();
+	texture_shader->setUniformMat4("world_to_screen", &projections.second.M[0][0]);
 	scene.render();
 
 	// Apply warp shader (framebuffer -> back buffer)
