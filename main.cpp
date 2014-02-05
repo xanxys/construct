@@ -91,6 +91,7 @@ protected:
 	void usePreBuffer();
 	void useBackBuffer();
 	
+	Object generateTextQuadAt(std::string text, float height, float dx, float dy, float dz);
 	std::shared_ptr<Texture> createTextureFromSurface(cairo_surface_t* surface);
 private:
 	GLuint FramebufferName;
@@ -165,8 +166,21 @@ Application::Application(bool windowed) {
 		}
 	}
 
-	// Text
-	auto surf = cairo_image_surface_create(CAIRO_FORMAT_ARGB32, 500, 50);
+	scene.objects.push_back(generateTextQuadAt("Construct", 0.15, 0, 1, 1.3));
+	scene.objects.push_back(generateTextQuadAt("はろーわーるど", 0.1, 0, 1, 1));
+}
+
+Object Application::generateTextQuadAt(std::string text, float height_meter, float dx, float dy, float dz) {
+	const float aspect_estimate = text.size() / 3.0f;  // assuming japanese letters in UTF-8.
+	const float px_per_meter = 500;
+
+	const float width_meter = height_meter * aspect_estimate;
+
+	// Create texture with string.
+	const int width_px = px_per_meter * width_meter;
+	const int height_px = px_per_meter * height_meter;
+
+	auto surf = cairo_image_surface_create(CAIRO_FORMAT_ARGB32, width_px, height_px);
 	auto c_context = cairo_create(surf);
 
 	cairo_select_font_face(c_context, "monospace", CAIRO_FONT_SLANT_NORMAL, CAIRO_FONT_WEIGHT_NORMAL);
@@ -176,19 +190,15 @@ Application::Application(bool windowed) {
 	cairo_fill(c_context);
 
 	cairo_set_font_size(c_context, 40);
-	cairo_translate(c_context, 10, 40);
-	cairo_show_text(c_context, "＊ハロー、プラネット。");
+	cairo_translate(c_context, 10, 0.8 * height_px);
+	cairo_show_text(c_context, text.c_str());
 	cairo_destroy(c_context);
-
-	auto tex = createTextureFromSurface(surf);
-
-	cairo_surface_write_to_png(surf, "test.png");
+	auto texture = createTextureFromSurface(surf);
 	cairo_surface_destroy(surf);
 
+	std::cout << "ISize:" << width_px << " * " << height_px << std::endl;
 
-	const float q_width = 1;
-	const float q_height = 0.1;
-
+	// Create geometry with texture.
 	GLfloat vertex_pos_uv[] = {
 		-1.0f, 0, -1.0f, 0, 1,
 		-1.0f, 0, 1.0f, 0, 0,
@@ -199,17 +209,18 @@ Application::Application(bool windowed) {
 		 1.0f, 0, -1.0f, 1, 1,
 	};
 	for(int i = 0; i < 6; i++) {
-		vertex_pos_uv[5 * i + 0] = vertex_pos_uv[5 * i + 0] * 0.5 * q_width;
-		vertex_pos_uv[5 * i + 1] = 1;
-		vertex_pos_uv[5 * i + 2] = 1 + vertex_pos_uv[5 * i + 2] * 0.5 * q_height;
+		vertex_pos_uv[5 * i + 0] = dx + vertex_pos_uv[5 * i + 0] * 0.5 * width_meter;
+		vertex_pos_uv[5 * i + 1] = dy;
+		vertex_pos_uv[5 * i + 2] = dz + vertex_pos_uv[5 * i + 2] * 0.5 * height_meter;
 	}
 
 	Object obj;
 	obj.shader = texture_shader;
 	obj.geometry = Geometry::createPosUV(6, vertex_pos_uv);
-	obj.texture = tex;
+	obj.texture = texture;
 	obj.use_blend = true;
-	scene.objects.push_back(obj);
+
+	return obj;
 }
 
 std::shared_ptr<Texture> Application::createTextureFromSurface(cairo_surface_t* surface) {
