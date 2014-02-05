@@ -100,6 +100,7 @@ protected:
 	void usePreBuffer();
 	void useBackBuffer();
 	
+	std::shared_ptr<Texture> createTextureFromSurface(cairo_surface_t* surface);
 private:
 	GLuint FramebufferName;
 
@@ -107,6 +108,7 @@ private:
 	Scene scene;
 
 	std::shared_ptr<Shader> standard_shader;
+	std::shared_ptr<Shader> texture_shader;
 	std::shared_ptr<Shader> warp_shader;
 
 	GLFWwindow* window;
@@ -120,7 +122,6 @@ private:
 	int buffer_height;
 
 	std::unique_ptr<Object> proxy;
-
 	std::shared_ptr<Texture> pre_buffer;
 };
 
@@ -183,14 +184,38 @@ Application::Application(bool windowed) {
 	cairo_set_font_size(c_context, 40);
 	cairo_translate(c_context, 10, 40);
 	cairo_show_text(c_context, "＊ハロー、プラネット。");
-	
-
 	cairo_destroy(c_context);
+
+	auto tex = createTextureFromSurface(surf);
 
 	cairo_surface_write_to_png(surf, "test.png");
 	cairo_surface_destroy(surf);
 
 }
+
+std::shared_ptr<Texture> Application::createTextureFromSurface(cairo_surface_t* surface) {
+	// Convert cairo format to GL format.
+	GLint gl_format;
+	const cairo_format_t format = cairo_image_surface_get_format(surface);
+	if(format == CAIRO_FORMAT_ARGB32) {
+		gl_format = GL_RGBA;
+	} else if(format == CAIRO_FORMAT_RGB24) {
+		gl_format = GL_RGB;
+	} else {
+		throw "Unsupported surface type";
+	}
+
+	// Create texture
+	const int width = cairo_image_surface_get_width(surface);
+	const int height = cairo_image_surface_get_height(surface);
+
+	auto texture = Texture::create(width, height);
+	texture->useIn();
+	glTexImage2D(GL_TEXTURE_2D, 0, gl_format, width, height, 0, gl_format, GL_UNSIGNED_BYTE, cairo_image_surface_get_data(surface));
+
+	return texture;
+}
+
 
 void Application::enableExtensions() {
 	GLenum err = glewInit();
@@ -372,6 +397,7 @@ void Application::init(bool windowed) {
 
 	//
 	standard_shader = Shader::create("base.vs", "base.fs");
+	texture_shader = Shader::create("tex.vs", "tex.fs");
 	warp_shader = Shader::create("warp.vs", "warp.fs");
 }
 
