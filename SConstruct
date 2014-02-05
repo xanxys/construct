@@ -16,11 +16,13 @@ env['ENV']['TERM'] = os.environ['TERM']
 env.Program(
 	'construct',
 	source = [
+		'gl.cpp',
 		'main.cpp',
 		],
 	LIBS = [
 		'libboost_system-mt',
 		'libboost_thread-mt',
+		'libcairo',
 		'libdl',
 		'libGL',
 		'libGLEW',

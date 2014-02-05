@@ -5,11 +5,13 @@
 #include <string>
 #include <vector>
 
+#include <cairo/cairo.h>
 #include <GL/glew.h>
 #include <GL/glfw3.h>
 #include <v8.h>
 
 #include "OVR.h"
+#include "gl.h"
 
 // "Must" for NPR, comfortable rendering:
 // * SSAO (uniform lighting and still look good)
@@ -79,154 +81,8 @@ void Scene::render() {
 
 
 
-// TODO: program leaks (in OpenGL context).
-class Shader {
-public:
-	Shader();
-	Shader(const char* vertex_file_path, const char* fragment_file_path);
-	~Shader();
-
-	void setUniform(std::string variable, GLint value);
-	void setUniform(std::string variable, float v0);
-	void setUniform(std::string variable, float v0, float v1);
-	void setUniform(std::string variable, float v0, float v1, float v2, float v3);
-	void setUniformMat4(std::string variable, float* pv);
-
-	void use();
-protected:
-	GLint getVariable(const std::string& variable);
-private:
-	bool initialized;
-	GLuint program;
-};
-
-Shader::Shader() : initialized(false) {
-}
-
-Shader::~Shader() {
-	std::cout << "Destroying shader (not implemented)" << std::endl;
-}
-
-Shader::Shader(const char* vertex_file_path, const char* fragment_file_path) : initialized(false) {
-	// Create the shaders
-	GLuint VertexShaderID = glCreateShader(GL_VERTEX_SHADER);
-	GLuint FragmentShaderID = glCreateShader(GL_FRAGMENT_SHADER);
-
-	// Read the Vertex Shader code from the file
-	std::string VertexShaderCode;
-	std::ifstream VertexShaderStream(vertex_file_path, std::ios::in);
-	if(VertexShaderStream.is_open())
-	{
-	    std::string Line = "";
-	    while(getline(VertexShaderStream, Line))
-	        VertexShaderCode += "\n" + Line;
-	    VertexShaderStream.close();
-	}
-
-	// Read the Fragment Shader code from the file
-	std::string FragmentShaderCode;
-	std::ifstream FragmentShaderStream(fragment_file_path, std::ios::in);
-	if(FragmentShaderStream.is_open()){
-	    std::string Line = "";
-	    while(getline(FragmentShaderStream, Line))
-	        FragmentShaderCode += "\n" + Line;
-	    FragmentShaderStream.close();
-	}
-
-	GLint Result = GL_FALSE;
-	int InfoLogLength;
-
-	// Compile Vertex Shader
-	printf("Compiling shader : %s\n", vertex_file_path);
-	char const * VertexSourcePointer = VertexShaderCode.c_str();
-	glShaderSource(VertexShaderID, 1, &VertexSourcePointer , NULL);
-	glCompileShader(VertexShaderID);
-
-	// Check Vertex Shader
-	glGetShaderiv(VertexShaderID, GL_COMPILE_STATUS, &Result);
-	glGetShaderiv(VertexShaderID, GL_INFO_LOG_LENGTH, &InfoLogLength);
-	std::vector<char> VertexShaderErrorMessage(InfoLogLength);
-	glGetShaderInfoLog(VertexShaderID, InfoLogLength, NULL, &VertexShaderErrorMessage[0]);
-	fprintf(stdout, "%s\n", &VertexShaderErrorMessage[0]);
-
-	// Compile Fragment Shader
-	printf("Compiling shader : %s\n", fragment_file_path);
-	char const * FragmentSourcePointer = FragmentShaderCode.c_str();
-	glShaderSource(FragmentShaderID, 1, &FragmentSourcePointer , NULL);
-	glCompileShader(FragmentShaderID);
-
-	// Check Fragment Shader
-	glGetShaderiv(FragmentShaderID, GL_COMPILE_STATUS, &Result);
-	glGetShaderiv(FragmentShaderID, GL_INFO_LOG_LENGTH, &InfoLogLength);
-	std::vector<char> FragmentShaderErrorMessage(InfoLogLength);
-	glGetShaderInfoLog(FragmentShaderID, InfoLogLength, NULL, &FragmentShaderErrorMessage[0]);
-	fprintf(stdout, "%s\n", &FragmentShaderErrorMessage[0]);
-
-	// Link the program
-	fprintf(stdout, "Linking program\n");
-	GLuint ProgramID = glCreateProgram();
-	glAttachShader(ProgramID, VertexShaderID);
-	glAttachShader(ProgramID, FragmentShaderID);
-	glLinkProgram(ProgramID);
-
-	// Check the program
-	glGetProgramiv(ProgramID, GL_LINK_STATUS, &Result);
-	glGetProgramiv(ProgramID, GL_INFO_LOG_LENGTH, &InfoLogLength);
-	std::vector<char> ProgramErrorMessage( std::max(InfoLogLength, int(1)) );
-	glGetProgramInfoLog(ProgramID, InfoLogLength, NULL, &ProgramErrorMessage[0]);
-	fprintf(stdout, "%s\n", &ProgramErrorMessage[0]);
-
-	glDeleteShader(VertexShaderID);
-	glDeleteShader(FragmentShaderID);
-
-	program = ProgramID;
-	initialized = true;
-}
-
-GLint Shader::getVariable(const std::string& variable) {
-	const GLint shader_variable = glGetUniformLocation(program, variable.c_str());
-	if(shader_variable < 0) {
-		throw "Variable in shader \"" + variable + "\" not found or removed due to lack of use";
-	}
-	return shader_variable;
-}
-
-void Shader::setUniform(std::string variable, GLint value) {
-	glUniform1i(getVariable(variable), value);
-}
-
-void Shader::setUniform(std::string variable, float v0) {
-	glUniform1f(getVariable(variable), v0);
-}
-
-void Shader::setUniform(std::string variable, float v0, float v1) {
-	glUniform2f(getVariable(variable), v0, v1);
-}
-
-void Shader::setUniform(std::string variable, float v0, float v1, float v2, float v3) {
-	glUniform4f(getVariable(variable), v0, v1, v2, v3);
-}
-
-void Shader::setUniformMat4(std::string variable, float* pv) {
-	glUniformMatrix4fv(getVariable(variable), 1, GL_TRUE, pv);
-}
 
 
-void Shader::use() {
-	if(initialized) {
-		glUseProgram(program);
-	} else {
-		throw "Uninitialized shader";
-	}
-}
-
-
-void enableExtensions() {
-	GLenum err = glewInit();
-	if(GLEW_OK != err) {
-		throw glewGetErrorString(err);
-	}
-}
 
 
 class Application {
@@ -237,6 +93,7 @@ public:
 	void run();
 
 protected:
+	void enableExtensions();
 	void init(bool windowed);
 
 	// Update everything, and draw final image to the back buffer.
@@ -251,7 +108,6 @@ protected:
 	
 private:
 	GLuint FramebufferName;
-	GLuint renderedTexture;
 
 	OVR::HMDInfo hmd;
 	Scene scene;
@@ -270,7 +126,10 @@ private:
 	int buffer_height;
 
 	std::unique_ptr<Object> proxy;
+
+	std::shared_ptr<Texture> pre_buffer;
 };
+
 
 Application::Application(bool windowed) {
 	init(windowed);
@@ -316,7 +175,35 @@ Application::Application(bool windowed) {
 			scene.objects.push_back(Object(6, &g_vertex_buffer_data[0]));
 		}
 	}
+
+	// Text
+	auto surf = cairo_image_surface_create(CAIRO_FORMAT_ARGB32, 500, 50);
+	auto c_context = cairo_create(surf);
+
+	cairo_select_font_face(c_context, "monospace", CAIRO_FONT_SLANT_NORMAL, CAIRO_FONT_WEIGHT_NORMAL);
+	cairo_set_source_rgb(c_context, 1, 0, 0);
+
+	cairo_rectangle(c_context, 0, 0, 10, 10);
+	cairo_fill(c_context);
+
+	cairo_set_font_size(c_context, 40);
+	cairo_translate(c_context, 10, 40);
+	cairo_show_text(c_context, "＊ハロー、プラネット。");
 	
+
+	cairo_destroy(c_context);
+
+	cairo_surface_write_to_png(surf, "test.png");
+	cairo_surface_destroy(surf);
+
+}
+
+
+void Application::enableExtensions() {
+	GLenum err = glewInit();
+	if(GLEW_OK != err) {
+		throw glewGetErrorString(err);
+	}
 }
 
 std::pair<OVR::Matrix4f, OVR::Matrix4f> Application::calcHMDProjection(float scale) {
@@ -478,18 +365,7 @@ void Application::init(bool windowed) {
 	glGenFramebuffers(1, &FramebufferName);
 	glBindFramebuffer(GL_FRAMEBUFFER, FramebufferName);
 
-	// The texture we're going to render to
-	glGenTextures(1, &renderedTexture);
-
-	// "Bind" the newly created texture : all future texture functions will modify this texture
-	glBindTexture(GL_TEXTURE_2D, renderedTexture);
-
-	// Give an empty image to OpenGL ( the last "0" )
-	glTexImage2D(GL_TEXTURE_2D, 0,GL_RGB, buffer_width, buffer_height, 0,GL_RGB, GL_UNSIGNED_BYTE, 0);
-
-	// Poor filtering. Needed !
-	glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_NEAREST);
-	glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_NEAREST);
+	pre_buffer = Texture::create(buffer_width, buffer_height);
 
 	// The depth buffer
 	GLuint depthrenderbuffer;
@@ -499,7 +375,7 @@ void Application::init(bool windowed) {
 	glFramebufferRenderbuffer(GL_FRAMEBUFFER, GL_DEPTH_ATTACHMENT, GL_RENDERBUFFER, depthrenderbuffer);
 
 	// Set "renderedTexture" as our colour attachement #0
-	glFramebufferTexture(GL_FRAMEBUFFER, GL_COLOR_ATTACHMENT0, renderedTexture, 0);
+	glFramebufferTexture(GL_FRAMEBUFFER, GL_COLOR_ATTACHMENT0, pre_buffer->unsafeGetId(), 0);
 
 	//
 	standard_shader = Shader("base.vs", "base.fs");
@@ -561,8 +437,7 @@ void Application::step() {
 
 	// Apply warp shader (framebuffer -> back buffer)
 	if(use_distortion) {
-		glActiveTexture(GL_TEXTURE0);
-		glBindTexture(GL_TEXTURE_2D, renderedTexture);
+		pre_buffer->useIn(0);
 
 		useBackBuffer();
 		warp_shader.use();
