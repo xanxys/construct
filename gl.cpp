@@ -3,6 +3,7 @@
 #include <array>
 #include <fstream>
 #include <iostream>
+#include <numeric>
 #include <sstream>
 
 std::shared_ptr<Shader> Shader::create(const std::string vertex_file_path, const std::string fragment_file_path) {
@@ -124,4 +125,62 @@ Texture::~Texture() {
 void Texture::useIn(int n) {
 	glActiveTexture(GL_TEXTURE0 + n);
 	glBindTexture(GL_TEXTURE_2D, id);
+}
+
+
+std::shared_ptr<Geometry> Geometry::createPos(int n_vertex, const float* pos) {
+	return std::shared_ptr<Geometry>(new Geometry(
+		n_vertex,
+		std::vector<int>({3}),
+		pos));
+}
+
+std::shared_ptr<Geometry> Geometry::createPosUV(int n_vertex, const float* pos_uv) {
+	return std::shared_ptr<Geometry>(new Geometry(
+		n_vertex,
+		std::vector<int>({3, 2}),
+		pos_uv));
+}
+
+Geometry::Geometry(int n_vertex, std::vector<int> attributes, const float* data) : n_vertex(n_vertex), attributes(attributes) {
+	glGenVertexArrays(1, &vertex_array);
+	glBindVertexArray(vertex_array);
+
+	glGenBuffers(1, &vertex_buffer);
+	glBindBuffer(GL_ARRAY_BUFFER, vertex_buffer);
+	glBufferData(GL_ARRAY_BUFFER, sizeof(float) * n_vertex * getColumns(), data, GL_STATIC_DRAW);
+}
+
+Geometry::~Geometry() {
+	glDeleteVertexArrays(1, &vertex_array);
+	glDeleteBuffers(1, &vertex_buffer);
+}
+
+int Geometry::getColumns() {
+	return std::accumulate(attributes.begin(), attributes.end(), 0);
+}
+
+void Geometry::render() {
+	glBindVertexArray(vertex_array);
+	glBindBuffer(GL_ARRAY_BUFFER, vertex_buffer);
+
+	const int columns = getColumns();
+	int current_offset = 0;
+	for(int i_attrib = 0; i_attrib < attributes.size(); i_attrib++) {
+		glEnableVertexAttribArray(i_attrib);
+		glVertexAttribPointer(
+			i_attrib,
+			attributes[i_attrib],
+			GL_FLOAT,
+			GL_FALSE,
+			sizeof(float) * columns,
+			(void*)(sizeof(float) * current_offset));
+		current_offset += attributes[i_attrib];
+	}
+	
+	glDrawArrays(GL_TRIANGLES, 0, n_vertex);
+
+	for(int i_attrib; i_attrib < attributes.size(); i_attrib++) {
+		glDisableVertexAttribArray(i_attrib);
+	}
 }

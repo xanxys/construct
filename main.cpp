@@ -2,7 +2,6 @@
 #include <fstream>
 #include <iostream>
 #include <memory>
-#include <numeric>
 #include <string>
 #include <vector>
 
@@ -23,79 +22,21 @@
 //
 // G-buffer (pos, normal, albedo) -> 
 
-// Purpose of vertex array is unclear to me. keep it as is (or add helpful comment).
-// Vertex buffer is tabular data, with columns = posx, posy, posz, u, v, for example.
-//
-// An attribute is a bunch of consectuve columns, such as position or texture coordinates.
-class Geometry {
-public:
-	Geometry(int n_vertex, const float* pos);
-	void render();
-protected:
-	int getColumns();
-private:
-	const int n_vertex;
-	GLuint vertex_array;
-	GLuint vertex_buffer;
-
-	std::vector<int> attributes;
-};
-
-Geometry::Geometry(int n_vertex, const float* pos) : n_vertex(n_vertex) {
-	glGenVertexArrays(1, &vertex_array);
-	glBindVertexArray(vertex_array);
-
-	attributes.push_back(3);
-
-	glGenBuffers(1, &vertex_buffer);
-	glBindBuffer(GL_ARRAY_BUFFER, vertex_buffer);
-	glBufferData(GL_ARRAY_BUFFER, sizeof(float) * n_vertex * getColumns(), pos, GL_STATIC_DRAW);
-}
-
-int Geometry::getColumns() {
-	return std::accumulate(attributes.begin(), attributes.end(), 0);
-}
-
-void Geometry::render() {
-	glBindVertexArray(vertex_array);
-	glBindBuffer(GL_ARRAY_BUFFER, vertex_buffer);
-
-	const int columns = getColumns();
-	int current_offset = 0;
-	for(int i_attrib = 0; i_attrib < attributes.size(); i_attrib++) {
-		glEnableVertexAttribArray(i_attrib);
-		glVertexAttribPointer(
-			i_attrib,
-			attributes[i_attrib],
-			GL_FLOAT,
-			GL_FALSE,
-			sizeof(float) * columns,
-			(void*)(sizeof(float) * current_offset));
-		current_offset += attributes[i_attrib];
-	}
-	
-	glDrawArrays(GL_TRIANGLES, 0, n_vertex);
-
-	for(int i_attrib; i_attrib < attributes.size(); i_attrib++) {
-		glDisableVertexAttribArray(i_attrib);
-	}
-}
-
 
 class Scene {
 public:
 	Scene();
 
 	void render();
-	std::vector<Geometry> Geometrys;
+	std::vector<std::shared_ptr<Geometry>> objects;
 };
 
 Scene::Scene() {
 }
 
 void Scene::render() {
-	for(auto& Geometry : Geometrys) {
-		Geometry.render();
+	for(auto& object : objects) {
+		object->render();
 	}
 }
 
@@ -142,7 +83,7 @@ private:
 	int buffer_width;
 	int buffer_height;
 
-	std::unique_ptr<Geometry> proxy;
+	std::shared_ptr<Geometry> proxy;
 	std::shared_ptr<Texture> pre_buffer;
 };
 
@@ -188,7 +129,7 @@ Application::Application(bool windowed) {
 				g_vertex_buffer_data[k * 3 + 1] += j;
 			}
 
-			scene.Geometrys.push_back(Geometry(6, &g_vertex_buffer_data[0]));
+			scene.objects.push_back(Geometry::createPos(6, &g_vertex_buffer_data[0]));
 		}
 	}
 
@@ -435,7 +376,7 @@ void Application::step() {
 			-1.0f,  1.0f, 0,
 		};
 
-		proxy.reset(new Geometry(6, vertex_pos));
+		proxy = Geometry::createPos(6, vertex_pos);
 	}
 	
 

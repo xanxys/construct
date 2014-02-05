@@ -2,6 +2,7 @@
 
 #include <memory>
 #include <string>
+#include <string>
 #include <vector>
 
 #include <GL/glew.h>
@@ -41,4 +42,27 @@ private:
 	Texture(int width, int height);
 private:
 	GLuint id;
+};
+
+
+// Purpose of vertex array is unclear to me. keep it as is (or add helpful comment).
+// Vertex buffer is tabular data, with columns = posx, posy, posz, u, v, for example.
+//
+// An attribute is a bunch of consectuve columns, such as position or texture coordinates.
+class Geometry {
+public:
+	static std::shared_ptr<Geometry> createPos(int n_vertex, const float* pos);
+	static std::shared_ptr<Geometry> createPosUV(int n_vertex, const float* pos_uv);
+	~Geometry();
+
+	void render();
+protected:
+	Geometry(int n_vertex, std::vector<int> attributes, const float* data);
+	int getColumns();
+private:
+	const int n_vertex;
+	GLuint vertex_array;
+	GLuint vertex_buffer;
+
+	std::vector<int> attributes;
 };
