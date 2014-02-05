@@ -1,7 +1,5 @@
 #pragma once
-#include <array>
-#include <fstream>
-#include <iostream>
+
 #include <memory>
 #include <string>
 #include <vector>
@@ -10,7 +8,7 @@
 
 class Shader {
 public:
-	static std::shared_ptr<Shader> create(const char* vertex_file_path, const char* fragment_file_path);
+	static std::shared_ptr<Shader> create(const std::string vertex_file_path, const std::string fragment_file_path);
 	~Shader();
 
 	void setUniform(std::string variable, GLint value);
@@ -21,9 +19,10 @@ public:
 
 	void use();
 protected:
-	Shader(const char* vertex_file_path, const char* fragment_file_path);
+	Shader(const std::string vertex_file_path, const std::string fragment_file_path);
 	GLint getVariable(const std::string& variable);
 
+	std::string readFile(std::string path);
 	std::string getLogFor(GLint id);
 private:
 	GLuint program;

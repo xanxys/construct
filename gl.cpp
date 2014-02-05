@@ -1,6 +1,11 @@
 #include "gl.h"
 
-std::shared_ptr<Shader> Shader::create(const char* vertex_file_path, const char* fragment_file_path) {
+#include <array>
+#include <fstream>
+#include <iostream>
+#include <sstream>
+
+std::shared_ptr<Shader> Shader::create(const std::string vertex_file_path, const std::string fragment_file_path) {
 	return std::shared_ptr<Shader>(new Shader(vertex_file_path, fragment_file_path));
 }
 
@@ -8,61 +13,42 @@ Shader::~Shader() {
 	glDeleteShader(program);
 }
 
-Shader::Shader(const char* vertex_file_path, const char* fragment_file_path) {
-	// Create the shaders
-	GLuint VertexShaderID = glCreateShader(GL_VERTEX_SHADER);
-	GLuint FragmentShaderID = glCreateShader(GL_FRAGMENT_SHADER);
-
-	// Read the Vertex Shader code from the file
-	std::string VertexShaderCode;
-	std::ifstream VertexShaderStream(vertex_file_path, std::ios::in);
-	if(VertexShaderStream.is_open())
-	{
-	    std::string Line = "";
-	    while(getline(VertexShaderStream, Line))
-	        VertexShaderCode += "\n" + Line;
-	    VertexShaderStream.close();
-	}
-
-	// Read the Fragment Shader code from the file
-	std::string FragmentShaderCode;
-	std::ifstream FragmentShaderStream(fragment_file_path, std::ios::in);
-	if(FragmentShaderStream.is_open()){
-	    std::string Line = "";
-	    while(getline(FragmentShaderStream, Line))
-	        FragmentShaderCode += "\n" + Line;
-	    FragmentShaderStream.close();
-	}
-
-	GLint Result = GL_FALSE;
-	int InfoLogLength;
-
+Shader::Shader(const std::string vertex_file_path, const std::string fragment_file_path) {
 	std::cout << "Compiling shader: " << vertex_file_path << " + " << fragment_file_path << std::endl;
 
 	// Compile Vertex Shader
-	char const * VertexSourcePointer = VertexShaderCode.c_str();
-	glShaderSource(VertexShaderID, 1, &VertexSourcePointer , NULL);
+	const GLuint VertexShaderID = glCreateShader(GL_VERTEX_SHADER);
+	std::string vs_code = readFile(vertex_file_path);
+	const char* vs_code_ptr = vs_code.c_str();
+	glShaderSource(VertexShaderID, 1, &vs_code_ptr, NULL);
 	glCompileShader(VertexShaderID);
 	std::cout << getLogFor(VertexShaderID) << std::endl;
 
 	// Compile Fragment Shader
-	char const * FragmentSourcePointer = FragmentShaderCode.c_str();
-	glShaderSource(FragmentShaderID, 1, &FragmentSourcePointer , NULL);
+	const GLuint FragmentShaderID = glCreateShader(GL_FRAGMENT_SHADER);
+	std::string fs_code = readFile(fragment_file_path);
+	const char* fs_code_ptr = fs_code.c_str();
+	glShaderSource(FragmentShaderID, 1, &fs_code_ptr, NULL);
 	glCompileShader(FragmentShaderID);
 	std::cout << getLogFor(FragmentShaderID) << std::endl;
 
 	// Link the program
-	GLuint ProgramID = glCreateProgram();
-	glAttachShader(ProgramID, VertexShaderID);
-	glAttachShader(ProgramID, FragmentShaderID);
-	glLinkProgram(ProgramID);
-	std::cout << getLogFor(ProgramID) << std::endl;
+	program = glCreateProgram();
+	glAttachShader(program, VertexShaderID);
+	glAttachShader(program, FragmentShaderID);
+	glLinkProgram(program);
+	std::cout << getLogFor(program) << std::endl;
 
 	// Release componenets.
 	glDeleteShader(VertexShaderID);
 	glDeleteShader(FragmentShaderID);
+}
 
-	program = ProgramID;
+std::string Shader::readFile(std::string path) {
+	std::ifstream ifs(path);
+	std::stringstream buffer;
+	buffer << ifs.rdbuf();
+	return buffer.str();
 }
 
 std::string Shader::getLogFor(GLint id) {
