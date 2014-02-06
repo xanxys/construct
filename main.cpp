@@ -240,6 +240,8 @@ Object Application::generateDasherQuadAt(float height_meter, float dx, float dy,
 void Application::updateDasherSurface() {
 	auto dir = getHeadDirection();
 
+	dasher.update(1.0 / 60, -dir.z * 100, dir.x * 100);
+
 	auto ctx = cairo_create(dasher_surface);
 	dasher.visualize(ctx);
 	cairo_arc(ctx, 125 + dir.x * 250, 125 - dir.z * 250, 10, 0, 2 * 3.1415);
@@ -247,6 +249,10 @@ void Application::updateDasherSurface() {
 	cairo_set_line_width(ctx, 3);
 	cairo_stroke(ctx);
 	cairo_destroy(ctx);
+
+
+	
+
 
 	const int width = 250;
 	const int height = 250;

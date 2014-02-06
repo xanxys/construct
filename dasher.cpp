@@ -15,7 +15,7 @@ std::vector<std::pair<float, std::shared_ptr<ProbNode>>> ProbNode::getChildren(s
 	std::string alphabet = "abcdefghijklmnopqrstuvwxyz ";
 	for(char ch : alphabet) {
 		children.push_back(std::make_pair(
-			1.0 / alphabet.size(),
+			(ch == 'e' ? 2.0 : 1.0) / (alphabet.size() + 1),
 			std::shared_ptr<ProbNode>(new ProbNode(node, std::string(1, ch)))));
 	}
 
