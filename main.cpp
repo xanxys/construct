@@ -11,6 +11,7 @@
 #include <GL/glfw3.h>
 #include <v8.h>
 
+#include "dasher.h"
 #include "OVR.h"
 #include "gl.h"
 
@@ -71,168 +72,6 @@ void Scene::render() {
 }
 
 
-
-class ProbNode {
-public:  // common interface
-	static std::shared_ptr<ProbNode> create();
-	static std::shared_ptr<ProbNode> getParent(std::shared_ptr<ProbNode> node);
-	static std::vector<std::pair<float, std::shared_ptr<ProbNode>>> getChildren(std::shared_ptr<ProbNode> node);
-
-	std::string getString();
-private:
-	ProbNode(std::shared_ptr<ProbNode> parent, std::string str);
-private:
-	std::string str;
-	std::shared_ptr<ProbNode> parent;
-};
-
-std::shared_ptr<ProbNode> ProbNode::create() {
-	return std::shared_ptr<ProbNode>(new ProbNode(std::shared_ptr<ProbNode>(), ""));
-}
-
-std::shared_ptr<ProbNode> ProbNode::getParent(std::shared_ptr<ProbNode> node) {
-	return node->parent;
-}
-
-std::vector<std::pair<float, std::shared_ptr<ProbNode>>> ProbNode::getChildren(std::shared_ptr<ProbNode> node) {
-	std::vector<std::pair<float, std::shared_ptr<ProbNode>>> children;
-
-	std::string alphabet = "abcdefghijklmnopqrstuvwxyz ";
-	for(char ch : alphabet) {
-		children.push_back(std::make_pair(
-			1.0 / alphabet.size(),
-			std::shared_ptr<ProbNode>(new ProbNode(node, std::string(1, ch)))));
-	}
-
-	return children;
-}
-
-ProbNode::ProbNode(std::shared_ptr<ProbNode> parent, std::string str) : parent(parent), str(str) {
-}
-
-std::string ProbNode::getString() {
-	return str;
-}
-
-
-
-class Dasher {
-public:
-	Dasher();
-	std::string getFixed();
-
-	// rel_index, rel_zoom: [-1, 1]
-	void update(float dt, float rel_index, float rel_zoom);
-
-	void visualize(cairo_t* ctx);
-private:
-	// Adjust current (and clip values if needed) so that invariance will hold.
-	void fit();
-public:
-	// invariance: [local_index - local_half_span, local_index + local_half_span] is contained in [0, 1]
-	std::shared_ptr<ProbNode> current;
-	float local_index;
-	float local_half_span;
-};
-
-Dasher::Dasher() {
-	current = ProbNode::create();
-	local_index = 0;
-	local_half_span = 0.5;
-	fit();
-}
-
-void Dasher::update(float dt, float rel_index, float rel_zoom) {
-	const float speed = 1.0;
-
-	local_half_span += dt * speed * rel_zoom;
-	local_index += dt * speed * (rel_index * local_half_span);
-	fit();
-}
-
-void Dasher::fit() {
-	const float p0 = local_index - local_half_span;
-	const float p1 = local_index + local_half_span;
-	
-	// Span doesn't fit in currrent node?
-	if(p0 < 0 || p1 > 1) {
-		auto parent = ProbNode::getParent(current);
-
-		if(parent) {
-			// convert coordinates to parent's.
-			float accum_p = 0;
-			for(auto& child : ProbNode::getChildren(parent)) {
-				if(child.second->getString() == current->getString()) {
-					// [0, 1] -> [accum_p, accum_p + child.first]
-					local_index = accum_p + child.first * local_index;
-					local_half_span = child.first * local_half_span;
-					current = parent;
-					fit();
-					break;
-				}
-				accum_p += child.first;
-			}
-		} else {
-			// clip, preserving span (this is somewhat arbitrary UI choice)
-			if(p0 < 0 && 1 < p1) {
-				local_index = 0.5;
-				local_half_span = 0.5;
-			} else if(p0 < 0) {
-				local_index = local_half_span;
-			} else if(1 < p1) {
-				local_index = 1 - local_half_span;
-			}
-		}
-	} else {
-		// Span can fit completely in a child?
-		float accum_p = 0;
-		for(auto& child : ProbNode::getChildren(current)) {
-			if(accum_p <= p0 && p1 < accum_p + child.first) {
-				local_index = (local_index - accum_p) / child.first;
-				local_half_span = local_half_span / child.first;
-				current = child.second;
-				fit();
-				break;
-			}
-			accum_p += child.first;
-		}
-	}
-}
-
-std::string Dasher::getFixed() {
-	std::string result;
-	std::shared_ptr<ProbNode> iter = current;
-	while(iter) {
-		result = iter->getString() + result;
-		iter = ProbNode::getParent(iter);
-	}
-	return result;
-}
-
-void Dasher::visualize(cairo_t* ctx) {
-	cairo_save(ctx);
-	cairo_scale(ctx, 250, 250);
-
-	float accum_p = 0;
-	int color_type = 0;
-	for(auto& child : ProbNode::getChildren(current)) {
-		if(color_type == 0) {
-			cairo_set_source_rgb(ctx, 0.8, 0.8, 0.9);
-		} else {
-			cairo_set_source_rgb(ctx, 0.7, 0.7, 0.8);
-		}
-		
-		cairo_rectangle(ctx, 0, accum_p, 1, child.first);
-		cairo_fill(ctx);
-
-		accum_p += child.first;
-		color_type = (color_type + 1) % 2;
-	}
-
-	cairo_restore(ctx);
-}
-
-
 class Application {
 public:
 	Application(bool windowed = false);
@@ -243,6 +82,7 @@ public:
 protected:
 	void enableExtensions();
 	void init(bool windowed);
+	void addInitialObjects();
 
 	// Update everything, and draw final image to the back buffer.
 	void step();
@@ -250,6 +90,7 @@ protected:
 	GLFWmonitor* findHMDMonitor(std::string name, int px, int py);
 
 	std::pair<OVR::Matrix4f, OVR::Matrix4f> calcHMDProjection(float scale);
+	OVR::Vector3f getHeadDirection();
 
 	void usePreBuffer();
 	void useBackBuffer();
@@ -313,6 +154,10 @@ Application::Application(bool windowed) {
 
 	std::cout << "V8 says: " << *ascii << std::endl;
 
+	addInitialObjects();
+}
+
+void Application::addInitialObjects() {
 	// Tiles
 	for(int i = -5; i <= 5; i++) {
 		for(int j = -5; j <= 5; j++) {
@@ -344,7 +189,6 @@ Application::Application(bool windowed) {
 
 	eye_position = OVR::Vector3f(0, 0, 1.4);
 }
-
 
 Object Application::generateDasherQuadAt(float height_meter, float dx, float dy, float dz) {
 	const float aspect_estimate = 1.0;
@@ -474,7 +318,6 @@ void Application::enableExtensions() {
 }
 
 std::pair<OVR::Matrix4f, OVR::Matrix4f> Application::calcHMDProjection(float scale) {
-
 	// Compute Aspect Ratio. Stereo mode cuts width in half.
 	const float aspectRatio = float(hmd.HResolution * 0.5f) / float(hmd.VResolution);
 
@@ -513,6 +356,15 @@ std::pair<OVR::Matrix4f, OVR::Matrix4f> Application::calcHMDProjection(float sca
 	return std::make_pair(
 		projLeft * viewLeft * hmdMat * world,
 		projRight * viewRight * hmdMat *  world);
+}
+
+OVR::Vector3f Application::getHeadDirection() {
+	OVR::Quatf hmdOrient = sensor_fusion->GetOrientation();
+	OVR::Matrix4f hmdMat(hmdOrient);
+
+	OVR::Matrix4f ovr_to_world = OVR::Matrix4f::RotationX(OVR::Math<double>::Pi * 0.5);
+
+	return (ovr_to_world * hmdMat).Transform(OVR::Vector3f(0, 0, -1));
 }
 
 void Application::usePreBuffer() {

@@ -16,6 +16,7 @@ env['ENV']['TERM'] = os.environ['TERM']
 env.Program(
 	'construct',
 	source = [
+		'dasher.cpp',
 		'gl.cpp',
 		'main.cpp',
 		],
