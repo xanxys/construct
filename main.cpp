@@ -85,7 +85,7 @@ protected:
 	void addInitialObjects();
 
 	// Update everything, and draw final image to the back buffer.
-	void step();
+	void render();
 
 	GLFWmonitor* findHMDMonitor(std::string name, int px, int py);
 
@@ -94,6 +94,7 @@ protected:
 
 	void usePreBuffer();
 	void useBackBuffer();
+	void updateDasherSurface();
 	
 	Object generateDasherQuadAt(float height, float dx, float dy, float dz);
 	Object generateTextQuadAt(std::string text, float height, float dx, float dy, float dz);
@@ -101,6 +102,8 @@ protected:
 private:  // TODO: decouple members
 	// Scene - dasher things.
 	Dasher dasher;
+	Object* dasher_object;
+	cairo_surface_t* dasher_surface;
 
 	// GL - Scene things.
 	Scene scene;
@@ -128,6 +131,8 @@ private:  // TODO: decouple members
 
 	std::shared_ptr<Geometry> proxy;
 	std::shared_ptr<Texture> pre_buffer;
+
+	int counter_d;
 };
 
 
@@ -183,9 +188,10 @@ void Application::addInitialObjects() {
 		}
 	}
 
-	scene.objects.push_back(generateTextQuadAt("Construct", 0.15, 0, 1, 1.3));
-	scene.objects.push_back(generateTextQuadAt("はろーわーるど", 0.1, 0, 1, 1));
-	scene.objects.push_back(generateDasherQuadAt(0.5, 0, 0.9, 0.5));
+	scene.objects.push_back(generateTextQuadAt("Construct", 0.15, 0, 1, 1.0));
+	scene.objects.push_back(generateTextQuadAt("はろーわーるど", 0.1, 0, 1, 1.8));
+	scene.objects.push_back(generateDasherQuadAt(0.5, 0, 0.9, 1.4));
+	dasher_object = &scene.objects[scene.objects.size() - 1];
 
 	eye_position = OVR::Vector3f(0, 0, 1.4);
 }
@@ -200,12 +206,11 @@ Object Application::generateDasherQuadAt(float height_meter, float dx, float dy,
 	const int width_px = px_per_meter * width_meter;
 	const int height_px = px_per_meter * height_meter;
 
-	auto surf = cairo_image_surface_create(CAIRO_FORMAT_ARGB32, width_px, height_px);
-	auto c_context = cairo_create(surf);
+	dasher_surface = cairo_image_surface_create(CAIRO_FORMAT_ARGB32, width_px, height_px);
+	auto c_context = cairo_create(dasher_surface);
 	dasher.visualize(c_context);
 	cairo_destroy(c_context);
-	auto texture = createTextureFromSurface(surf);
-	cairo_surface_destroy(surf);
+	auto texture = createTextureFromSurface(dasher_surface);
 
 	// Create geometry with texture.
 	GLfloat vertex_pos_uv[] = {
@@ -232,6 +237,23 @@ Object Application::generateDasherQuadAt(float height_meter, float dx, float dy,
 	return obj;
 }
 
+void Application::updateDasherSurface() {
+	auto dir = getHeadDirection();
+
+	auto ctx = cairo_create(dasher_surface);
+	dasher.visualize(ctx);
+	cairo_arc(ctx, 125 + dir.x * 250, 125 - dir.z * 250, 10, 0, 2 * 3.1415);
+	cairo_set_source_rgb(ctx, 1, 0, 0);
+	cairo_set_line_width(ctx, 3);
+	cairo_stroke(ctx);
+	cairo_destroy(ctx);
+
+	const int width = 250;
+	const int height = 250;
+
+	dasher_object->texture->useIn();
+	glTexImage2D(GL_TEXTURE_2D, 0, GL_RGBA, width, height, 0, GL_RGBA, GL_UNSIGNED_BYTE, cairo_image_surface_get_data(dasher_surface));
+}
 
 Object Application::generateTextQuadAt(std::string text, float height_meter, float dx, float dy, float dz) {
 	const float aspect_estimate = text.size() / 3.0f;  // assuming japanese letters in UTF-8.
@@ -500,7 +522,7 @@ void Application::init(bool windowed) {
 	warp_shader = Shader::create("warp.vs", "warp.fs");
 }
 
-void Application::step() {
+void Application::render() {
 	// rectangle spanning [-1, 1]^2
 	if(!proxy) {
 		const GLfloat vertex_pos[] = {
@@ -591,7 +613,8 @@ void Application::step() {
 void Application::run() {
 	try {
 		while(!glfwWindowShouldClose(window)) {
-			step();
+			updateDasherSurface();
+			render();
 			glfwSwapBuffers(window);
 			glfwPollEvents();
 		}
