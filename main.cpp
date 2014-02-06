@@ -120,6 +120,11 @@ class Dasher {
 public:
 	Dasher();
 	std::string getFixed();
+
+	// rel_index, rel_zoom: [-1, 1]
+	void update(float dt, float rel_index, float rel_zoom);
+
+	void visualize(cairo_t* ctx);
 private:
 	// Adjust current (and clip values if needed) so that invariance will hold.
 	void fit();
@@ -134,9 +139,14 @@ Dasher::Dasher() {
 	current = ProbNode::create();
 	local_index = 0;
 	local_half_span = 0.5;
+	fit();
+}
 
-	local_index = 0.432423;
-	local_half_span = 0.000000003;
+void Dasher::update(float dt, float rel_index, float rel_zoom) {
+	const float speed = 1.0;
+
+	local_half_span += dt * speed * rel_zoom;
+	local_index += dt * speed * (rel_index * local_half_span);
 	fit();
 }
 
@@ -199,6 +209,29 @@ std::string Dasher::getFixed() {
 	return result;
 }
 
+void Dasher::visualize(cairo_t* ctx) {
+	cairo_save(ctx);
+	cairo_scale(ctx, 250, 250);
+
+	float accum_p = 0;
+	int color_type = 0;
+	for(auto& child : ProbNode::getChildren(current)) {
+		if(color_type == 0) {
+			cairo_set_source_rgb(ctx, 0.8, 0.8, 0.9);
+		} else {
+			cairo_set_source_rgb(ctx, 0.7, 0.7, 0.8);
+		}
+		
+		cairo_rectangle(ctx, 0, accum_p, 1, child.first);
+		cairo_fill(ctx);
+
+		accum_p += child.first;
+		color_type = (color_type + 1) % 2;
+	}
+
+	cairo_restore(ctx);
+}
+
 
 class Application {
 public:
@@ -221,6 +254,7 @@ protected:
 	void usePreBuffer();
 	void useBackBuffer();
 	
+	Object generateDasherQuadAt(float height, float dx, float dy, float dz);
 	Object generateTextQuadAt(std::string text, float height, float dx, float dy, float dz);
 	std::shared_ptr<Texture> createTextureFromSurface(cairo_surface_t* surface);
 private:  // TODO: decouple members
@@ -233,6 +267,8 @@ private:  // TODO: decouple members
 	std::shared_ptr<Shader> standard_shader;
 	std::shared_ptr<Shader> texture_shader;
 	std::shared_ptr<Shader> warp_shader;
+
+	OVR::Vector3f eye_position;
 
 	// OVR-GL things.
 	GLuint FramebufferName;
@@ -304,7 +340,54 @@ Application::Application(bool windowed) {
 
 	scene.objects.push_back(generateTextQuadAt("Construct", 0.15, 0, 1, 1.3));
 	scene.objects.push_back(generateTextQuadAt("はろーわーるど", 0.1, 0, 1, 1));
+	scene.objects.push_back(generateDasherQuadAt(0.5, 0, 0.9, 0.5));
+
+	eye_position = OVR::Vector3f(0, 0, 1.4);
 }
+
+
+Object Application::generateDasherQuadAt(float height_meter, float dx, float dy, float dz) {
+	const float aspect_estimate = 1.0;
+	const float px_per_meter = 500;
+
+	const float width_meter = height_meter * aspect_estimate;
+
+	// Create texture with string.
+	const int width_px = px_per_meter * width_meter;
+	const int height_px = px_per_meter * height_meter;
+
+	auto surf = cairo_image_surface_create(CAIRO_FORMAT_ARGB32, width_px, height_px);
+	auto c_context = cairo_create(surf);
+	dasher.visualize(c_context);
+	cairo_destroy(c_context);
+	auto texture = createTextureFromSurface(surf);
+	cairo_surface_destroy(surf);
+
+	// Create geometry with texture.
+	GLfloat vertex_pos_uv[] = {
+		-1.0f, 0, -1.0f, 0, 1,
+		-1.0f, 0, 1.0f, 0, 0,
+		 1.0f, 0, 1.0f, 1, 0,
+
+		-1.0f, 0, -1.0f, 0, 1,
+		 1.0f, 0, 1.0f, 1, 0,
+		 1.0f, 0, -1.0f, 1, 1,
+	};
+	for(int i = 0; i < 6; i++) {
+		vertex_pos_uv[5 * i + 0] = dx + vertex_pos_uv[5 * i + 0] * 0.5 * width_meter;
+		vertex_pos_uv[5 * i + 1] = dy;
+		vertex_pos_uv[5 * i + 2] = dz + vertex_pos_uv[5 * i + 2] * 0.5 * height_meter;
+	}
+
+	Object obj;
+	obj.shader = texture_shader;
+	obj.geometry = Geometry::createPosUV(6, vertex_pos_uv);
+	obj.texture = texture;
+	obj.use_blend = true;
+
+	return obj;
+}
+
 
 Object Application::generateTextQuadAt(std::string text, float height_meter, float dx, float dy, float dz) {
 	const float aspect_estimate = text.size() / 3.0f;  // assuming japanese letters in UTF-8.
@@ -425,7 +508,7 @@ std::pair<OVR::Matrix4f, OVR::Matrix4f> Application::calcHMDProjection(float sca
 
 	OVR::Matrix4f world = 
 		OVR::Matrix4f::RotationX(-OVR::Math<double>::Pi * 0.5) *
-		OVR::Matrix4f::Translation(0, 0, -1.4);
+		OVR::Matrix4f::Translation(-eye_position);
 
 	return std::make_pair(
 		projLeft * viewLeft * hmdMat * world,
