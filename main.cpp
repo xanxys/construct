@@ -5,6 +5,7 @@
 #include <string>
 #include <vector>
 
+#include <boost/optional.hpp>
 #include <cairo/cairo.h>
 #include <GL/glew.h>
 #include <GL/glfw3.h>
@@ -70,6 +71,135 @@ void Scene::render() {
 }
 
 
+
+class ProbNode {
+public:  // common interface
+	static std::shared_ptr<ProbNode> create();
+	static std::shared_ptr<ProbNode> getParent(std::shared_ptr<ProbNode> node);
+	static std::vector<std::pair<float, std::shared_ptr<ProbNode>>> getChildren(std::shared_ptr<ProbNode> node);
+
+	std::string getString();
+private:
+	ProbNode(std::shared_ptr<ProbNode> parent, std::string str);
+private:
+	std::string str;
+	std::shared_ptr<ProbNode> parent;
+};
+
+std::shared_ptr<ProbNode> ProbNode::create() {
+	return std::shared_ptr<ProbNode>(new ProbNode(std::shared_ptr<ProbNode>(), ""));
+}
+
+std::shared_ptr<ProbNode> ProbNode::getParent(std::shared_ptr<ProbNode> node) {
+	return node->parent;
+}
+
+std::vector<std::pair<float, std::shared_ptr<ProbNode>>> ProbNode::getChildren(std::shared_ptr<ProbNode> node) {
+	std::vector<std::pair<float, std::shared_ptr<ProbNode>>> children;
+
+	std::string alphabet = "abcdefghijklmnopqrstuvwxyz ";
+	for(char ch : alphabet) {
+		children.push_back(std::make_pair(
+			1.0 / alphabet.size(),
+			std::shared_ptr<ProbNode>(new ProbNode(node, std::string(1, ch)))));
+	}
+
+	return children;
+}
+
+ProbNode::ProbNode(std::shared_ptr<ProbNode> parent, std::string str) : parent(parent), str(str) {
+}
+
+std::string ProbNode::getString() {
+	return str;
+}
+
+
+
+class Dasher {
+public:
+	Dasher();
+	std::string getFixed();
+private:
+	// Adjust current (and clip values if needed) so that invariance will hold.
+	void fit();
+public:
+	// invariance: [local_index - local_half_span, local_index + local_half_span] is contained in [0, 1]
+	std::shared_ptr<ProbNode> current;
+	float local_index;
+	float local_half_span;
+};
+
+Dasher::Dasher() {
+	current = ProbNode::create();
+	local_index = 0;
+	local_half_span = 0.5;
+
+	local_index = 0.432423;
+	local_half_span = 0.000000003;
+	fit();
+}
+
+void Dasher::fit() {
+	const float p0 = local_index - local_half_span;
+	const float p1 = local_index + local_half_span;
+	
+	// Span doesn't fit in currrent node?
+	if(p0 < 0 || p1 > 1) {
+		auto parent = ProbNode::getParent(current);
+
+		if(parent) {
+			// convert coordinates to parent's.
+			float accum_p = 0;
+			for(auto& child : ProbNode::getChildren(parent)) {
+				if(child.second->getString() == current->getString()) {
+					// [0, 1] -> [accum_p, accum_p + child.first]
+					local_index = accum_p + child.first * local_index;
+					local_half_span = child.first * local_half_span;
+					current = parent;
+					fit();
+					break;
+				}
+				accum_p += child.first;
+			}
+		} else {
+			// clip, preserving span (this is somewhat arbitrary UI choice)
+			if(p0 < 0 && 1 < p1) {
+				local_index = 0.5;
+				local_half_span = 0.5;
+			} else if(p0 < 0) {
+				local_index = local_half_span;
+			} else if(1 < p1) {
+				local_index = 1 - local_half_span;
+			}
+		}
+	} else {
+		// Span can fit completely in a child?
+		float accum_p = 0;
+		for(auto& child : ProbNode::getChildren(current)) {
+			if(accum_p <= p0 && p1 < accum_p + child.first) {
+				local_index = (local_index - accum_p) / child.first;
+				local_half_span = local_half_span / child.first;
+				current = child.second;
+				fit();
+				break;
+			}
+			accum_p += child.first;
+		}
+	}
+}
+
+std::string Dasher::getFixed() {
+	std::string result;
+	std::shared_ptr<ProbNode> iter = current;
+	while(iter) {
+		result = iter->getString() + result;
+		iter = ProbNode::getParent(iter);
+	}
+	return result;
+}
+
+
 class Application {
 public:
 	Application(bool windowed = false);
@@ -93,15 +223,21 @@ protected:
 	
 	Object generateTextQuadAt(std::string text, float height, float dx, float dy, float dz);
 	std::shared_ptr<Texture> createTextureFromSurface(cairo_surface_t* surface);
-private:
-	GLuint FramebufferName;
+private:  // TODO: decouple members
+	// Scene - dasher things.
+	Dasher dasher;
 
-	OVR::HMDInfo hmd;
+	// GL - Scene things.
 	Scene scene;
 
 	std::shared_ptr<Shader> standard_shader;
 	std::shared_ptr<Shader> texture_shader;
 	std::shared_ptr<Shader> warp_shader;
+
+	// OVR-GL things.
+	GLuint FramebufferName;
+
+	OVR::HMDInfo hmd;
 
 	GLFWwindow* window;
 	std::unique_ptr<OVR::SensorFusion> sensor_fusion;
@@ -298,8 +434,6 @@ std::pair<OVR::Matrix4f, OVR::Matrix4f> Application::calcHMDProjection(float sca
 
 void Application::usePreBuffer() {
 	// Set attachment 0.
-
-
 	glBindFramebuffer(GL_FRAMEBUFFER, FramebufferName);
 
 	// Use attachment 0.
