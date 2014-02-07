@@ -24,6 +24,29 @@
 //
 // G-buffer (pos, normal, albedo) -> 
 
+// In-VR interactions:
+// Provide text input that always works. (dasher)
+// But avoid using text.
+
+// All objects are isolated from each other;
+// Object doesn't have address of other objects.
+//
+// Object-object interaction is limited to:
+// 1 geometric neighbor access
+// 2 forking itself
+// 3 sending json object via id
+//
+// 1 and 2 should be used primarily, and 3 "very" sparingly:
+// to send message from object A to distant object B,
+// it's almost always better to visualize the message as another object
+// and move it in the world.
+//
+// This way, everything is controllable from inside, by default.
+// In contrast, if 3 (or direct method call) is used mainly,
+// it can't be accessed safely from the inside because of
+// fear of infinite loop and such (see smalltalk).
+
+class NativeScript;
 
 class Object {
 public:
@@ -35,9 +58,26 @@ public:
 
 	// optional
 	std::shared_ptr<Texture> texture;
+
+
+	std::unique_ptr<NativeScript> nscript;
 };
 
 Object::Object() : use_blend(false) {
+}
+
+
+class NativeScript {
+public:
+	NativeScript();
+	virtual void step(float dt, Object& object);
+};
+
+NativeScript::NativeScript() {
+}
+
+void NativeScript::step(float dt, Object& object) {
+
 }
 
 class Scene {
@@ -45,7 +85,7 @@ public:
 	Scene();
 
 	void render();
-	std::vector<Object> objects;
+	std::vector<std::unique_ptr<Object>> objects;
 };
 
 Scene::Scene() {
@@ -53,24 +93,36 @@ Scene::Scene() {
 
 void Scene::render() {
 	for(auto& object : objects) {
-		if(object.use_blend) {
+		if(object->use_blend) {
 			glEnable(GL_BLEND);
 			glBlendFunc(GL_SRC_ALPHA, GL_ONE);
 		}
 
-		object.shader->use();
-		if(object.texture) {
-			object.texture->useIn(0);
-			object.shader->setUniform("texture", 0);
+		object->shader->use();
+		if(object->texture) {
+			object->texture->useIn(0);
+			object->shader->setUniform("texture", 0);
 		}
-		object.geometry->render();
+		object->geometry->render();
 
-		if(object.use_blend) {
+		if(object->use_blend) {
 			glDisable(GL_BLEND);
 		}
 	}
 }
 
+
+
+class DasherScript : public NativeScript {
+public:
+	void step(float dt, Object& object) override;
+private:
+
+};
+
+void DasherScript::step(float dt, Object& object) {
+
+}
 
 class Application {
 public:
@@ -111,8 +163,8 @@ protected:
 
 	void printDisplays();
 	
-	Object generateDasherQuadAt(float height, float dx, float dy, float dz);
-	Object generateTextQuadAt(std::string text, float height, float dx, float dy, float dz);
+	std::unique_ptr<Object> generateDasherQuadAt(float height, float dx, float dy, float dz);
+	std::unique_ptr<Object> generateTextQuadAt(std::string text, float height, float dx, float dy, float dz);
 	std::shared_ptr<Texture> createTextureFromSurface(cairo_surface_t* surface);
 private:  // TODO: decouple members
 	// Scene - dasher things.
@@ -196,22 +248,22 @@ void Application::addInitialObjects() {
 				g_vertex_buffer_data[k * 3 + 1] += j;
 			}
 
-			Object obj;
-			obj.shader = standard_shader;
-			obj.geometry = Geometry::createPos(6, &g_vertex_buffer_data[0]);
-			scene.objects.push_back(obj);
+		 	auto obj = std::unique_ptr<Object>(new Object());
+			obj->shader = standard_shader;
+			obj->geometry = Geometry::createPos(6, &g_vertex_buffer_data[0]);
+			scene.objects.push_back(std::move(obj));
 		}
 	}
 
 	scene.objects.push_back(generateTextQuadAt("Construct", 0.15, 0, 1, 1.0));
 	scene.objects.push_back(generateTextQuadAt("はろーわーるど", 0.1, 0, 1, 1.8));
 	scene.objects.push_back(generateDasherQuadAt(0.5, 0, 0.9, 1.4));
-	dasher_object = &scene.objects[scene.objects.size() - 1];
+	dasher_object = scene.objects[scene.objects.size() - 1].get();
 
 	eye_position = OVR::Vector3f(0, 0, 1.4);
 }
 
-Object Application::generateDasherQuadAt(float height_meter, float dx, float dy, float dz) {
+std::unique_ptr<Object> Application::generateDasherQuadAt(float height_meter, float dx, float dy, float dz) {
 	const float aspect_estimate = 1.0;
 	const float px_per_meter = 500;
 
@@ -243,11 +295,11 @@ Object Application::generateDasherQuadAt(float height_meter, float dx, float dy,
 		vertex_pos_uv[5 * i + 2] = dz + vertex_pos_uv[5 * i + 2] * 0.5 * height_meter;
 	}
 
-	Object obj;
-	obj.shader = texture_shader;
-	obj.geometry = Geometry::createPosUV(6, vertex_pos_uv);
-	obj.texture = texture;
-	obj.use_blend = true;
+	auto obj = std::unique_ptr<Object>(new Object());
+	obj->shader = texture_shader;
+	obj->geometry = Geometry::createPosUV(6, vertex_pos_uv);
+	obj->texture = texture;
+	obj->use_blend = true;
 
 	return obj;
 }
@@ -277,7 +329,7 @@ void Application::updateDasherSurface() {
 	glTexImage2D(GL_TEXTURE_2D, 0, GL_RGBA, width, height, 0, GL_BGRA, GL_UNSIGNED_BYTE, cairo_image_surface_get_data(dasher_surface));
 }
 
-Object Application::generateTextQuadAt(std::string text, float height_meter, float dx, float dy, float dz) {
+std::unique_ptr<Object> Application::generateTextQuadAt(std::string text, float height_meter, float dx, float dy, float dz) {
 	const float aspect_estimate = text.size() / 3.0f;  // assuming japanese letters in UTF-8.
 	const float px_per_meter = 500;
 
@@ -321,11 +373,11 @@ Object Application::generateTextQuadAt(std::string text, float height_meter, flo
 		vertex_pos_uv[5 * i + 2] = dz + vertex_pos_uv[5 * i + 2] * 0.5 * height_meter;
 	}
 
-	Object obj;
-	obj.shader = texture_shader;
-	obj.geometry = Geometry::createPosUV(6, vertex_pos_uv);
-	obj.texture = texture;
-	obj.use_blend = true;
+	auto obj = std::unique_ptr<Object>(new Object());
+	obj->shader = texture_shader;
+	obj->geometry = Geometry::createPosUV(6, vertex_pos_uv);
+	obj->texture = texture;
+	obj->use_blend = true;
 
 	return obj;
 }
