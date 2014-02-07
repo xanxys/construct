@@ -149,6 +149,9 @@ protected:
 	void init(DisplayMode mode);
 	void addInitialObjects();
 
+	// Process aspects.
+	void step();
+
 	// Update everything, and draw final image to the back buffer.
 	void render();
 
@@ -171,6 +174,10 @@ private:  // TODO: decouple members
 	Dasher dasher;
 	Object* dasher_object;
 	cairo_surface_t* dasher_surface;
+
+	// Scene - text input.
+	Object* input_object;
+	cairo_surface_t* input_surface;
 
 	// GL - Scene things.
 	Scene scene;
@@ -255,8 +262,14 @@ void Application::addInitialObjects() {
 		}
 	}
 
-	scene.objects.push_back(generateTextQuadAt("Construct", 0.15, 0, 1, 1.0));
+
+	// TODO: fix this mess ASAP (by using NativeScript)
 	scene.objects.push_back(generateTextQuadAt("はろーわーるど", 0.1, 0, 1, 1.8));
+	cairo_surface_destroy(input_surface);
+
+	scene.objects.push_back(generateTextQuadAt("Construct", 0.15, 0, 1, 1.0));
+	input_object = scene.objects[scene.objects.size() - 1].get();
+	
 	scene.objects.push_back(generateDasherQuadAt(0.5, 0, 0.9, 1.4));
 	dasher_object = scene.objects[scene.objects.size() - 1].get();
 
@@ -326,7 +339,32 @@ void Application::updateDasherSurface() {
 	const int height = 250;
 
 	dasher_object->texture->useIn();
-	glTexImage2D(GL_TEXTURE_2D, 0, GL_RGBA, width, height, 0, GL_BGRA, GL_UNSIGNED_BYTE, cairo_image_surface_get_data(dasher_surface));
+	glTexImage2D(GL_TEXTURE_2D, 0, GL_RGBA,
+		width, height,
+		0, GL_BGRA, GL_UNSIGNED_BYTE,
+		cairo_image_surface_get_data(dasher_surface));
+
+
+	// update text
+	{
+		auto ctx = cairo_create(input_surface);
+		cairo_set_source_rgb(ctx, 1, 1, 1);
+		cairo_paint(ctx);
+
+		cairo_set_source_rgb(ctx, 0, 0, 0);
+		cairo_set_font_size(ctx, 30);
+		cairo_translate(ctx, 10, 50);
+		cairo_show_text(ctx, dasher.getFixed().c_str());
+		cairo_destroy(ctx);
+
+		input_object->texture->useIn();
+		glTexImage2D(GL_TEXTURE_2D, 0, GL_RGBA,
+			cairo_image_surface_get_width(input_surface),
+			cairo_image_surface_get_height(input_surface),
+			0, GL_BGRA, GL_UNSIGNED_BYTE,
+			cairo_image_surface_get_data(input_surface));
+	}
+	
 }
 
 std::unique_ptr<Object> Application::generateTextQuadAt(std::string text, float height_meter, float dx, float dy, float dz) {
@@ -353,7 +391,7 @@ std::unique_ptr<Object> Application::generateTextQuadAt(std::string text, float 
 	cairo_show_text(c_context, text.c_str());
 	cairo_destroy(c_context);
 	auto texture = createTextureFromSurface(surf);
-	cairo_surface_destroy(surf);
+	input_surface = surf;
 
 	std::cout << "ISize:" << width_px << " * " << height_px << std::endl;
 
@@ -646,6 +684,19 @@ void Application::init(DisplayMode mode) {
 	warp_shader = Shader::create("warp.vs", "warp.fs");
 }
 
+void Application::step() {
+	updateDasherSurface();
+
+	// TODO: interleave execution of step. Normal GUI
+	// doesn't require 60fps. (All critical process must
+	// be Turing-incomplete and handled by the system)
+	for(auto& object : scene.objects) {
+		if(object->nscript) {
+			object->nscript->step(1.0 / 60, *object.get());
+		}
+	}
+}
+
 void Application::render() {
 	// rectangle spanning [-1, 1]^2
 	if(!proxy) {
@@ -737,7 +788,7 @@ void Application::render() {
 void Application::run() {
 	try {
 		while(!glfwWindowShouldClose(window)) {
-			updateDasherSurface();
+			step();
 			render();
 			glfwSwapBuffers(window);
 			glfwPollEvents();
