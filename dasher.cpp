@@ -144,12 +144,17 @@ void Dasher::drawNode(std::shared_ptr<ProbNode> node, cairo_t* ctx, float p0, fl
 		return;
 	}
 
+	cairo_rectangle(ctx, -dp, p0, dp, dp);
+
 	const auto color = getNodeColor(node);
 	cairo_set_source_rgb(ctx,
 		std::get<0>(color), std::get<1>(color), std::get<2>(color));
-	
-	cairo_rectangle(ctx, -dp, p0, dp, dp);
-	cairo_fill(ctx);
+	cairo_fill_preserve(ctx);
+
+	cairo_set_line_width(ctx, 0.03 * dp);
+	cairo_set_source_rgb(ctx, 0.2, 0.2, 0.2);
+	cairo_stroke(ctx);
+
 
 	cairo_save(ctx);
 	cairo_set_source_rgb(ctx, 0, 0, 0);
