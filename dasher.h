@@ -38,6 +38,8 @@ private:
 	// Adjust current (and clip values if needed) so that invariance will hold.
 	void fit();
 
+	std::tuple<double, double, double> getNodeColor(std::shared_ptr<ProbNode> node);
+
 	void drawNode(std::shared_ptr<ProbNode> node, cairo_t* ctx);
 public:
 	// invariance: [local_index - local_half_span, local_index + local_half_span] is contained in [0, 1]

@@ -124,13 +124,10 @@ void Dasher::visualize(cairo_t* ctx) {
 
 	// draw in [-1,0] * [0,1]
 	float accum_p = 0;
-	int color_type = 0;
 	for(auto& child : ProbNode::getChildren(current)) {
-		if(color_type == 0) {
-			cairo_set_source_rgb(ctx, 0.8, 0.8, 0.9);
-		} else {
-			cairo_set_source_rgb(ctx, 0.7, 0.7, 0.8);
-		}
+		const auto color = getNodeColor(child.second);
+		cairo_set_source_rgb(ctx,
+			std::get<0>(color), std::get<1>(color), std::get<2>(color));
 		
 		cairo_rectangle(ctx, -child.first, accum_p, child.first, child.first);
 		cairo_fill(ctx);
@@ -144,17 +141,19 @@ void Dasher::visualize(cairo_t* ctx) {
 		cairo_restore(ctx);
 
 		accum_p += child.first;
-		color_type = (color_type + 1) % 2;
 	}
 
-	/*
-	cairo_set_line_width(ctx, 0.01);
-	cairo_rectangle(ctx, 0, local_index - local_half_span, 1, local_half_span * 2);
-	cairo_set_source_rgb(ctx, 1, 0, 0);
-	cairo_stroke(ctx);
-	*/
-
 	cairo_restore(ctx);
+}
+
+std::tuple<double, double, double> Dasher::getNodeColor(
+	std::shared_ptr<ProbNode> node) {
+
+	if(static_cast<int>(node->getString()[0]) % 2 == 0) {
+		return std::make_tuple(0.8, 0.8, 0.9);
+	} else {
+		return std::make_tuple(0.7, 0.7, 0.8);
+	}
 }
 
 void Dasher::drawNode(std::shared_ptr<ProbNode> node, cairo_t* ctx) {

@@ -255,7 +255,7 @@ Object Application::generateDasherQuadAt(float height_meter, float dx, float dy,
 void Application::updateDasherSurface() {
 	auto dir = getHeadDirection();
 
-	dasher.update(1.0 / 60, -dir.z * 10, -dir.x * 10);
+	dasher.update(1.0 / 60, -dir.z * 10, -dir.x * 1);
 
 	auto ctx = cairo_create(dasher_surface);
 	dasher.visualize(ctx);
