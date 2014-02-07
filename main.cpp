@@ -274,7 +274,7 @@ void Application::updateDasherSurface() {
 	const int height = 250;
 
 	dasher_object->texture->useIn();
-	glTexImage2D(GL_TEXTURE_2D, 0, GL_RGBA, width, height, 0, GL_RGBA, GL_UNSIGNED_BYTE, cairo_image_surface_get_data(dasher_surface));
+	glTexImage2D(GL_TEXTURE_2D, 0, GL_RGBA, width, height, 0, GL_BGRA, GL_UNSIGNED_BYTE, cairo_image_surface_get_data(dasher_surface));
 }
 
 Object Application::generateTextQuadAt(std::string text, float height_meter, float dx, float dy, float dz) {
@@ -332,12 +332,15 @@ Object Application::generateTextQuadAt(std::string text, float height_meter, flo
 
 std::shared_ptr<Texture> Application::createTextureFromSurface(cairo_surface_t* surface) {
 	// Convert cairo format to GL format.
+	GLint gl_internal_format;
 	GLint gl_format;
 	const cairo_format_t format = cairo_image_surface_get_format(surface);
 	if(format == CAIRO_FORMAT_ARGB32) {
-		gl_format = GL_RGBA;
+		gl_internal_format = GL_RGBA;
+		gl_format = GL_BGRA;
 	} else if(format == CAIRO_FORMAT_RGB24) {
-		gl_format = GL_RGB;
+		gl_internal_format = GL_RGB;
+		gl_format = GL_BGR;
 	} else {
 		throw "Unsupported surface type";
 	}
@@ -348,7 +351,7 @@ std::shared_ptr<Texture> Application::createTextureFromSurface(cairo_surface_t* 
 
 	auto texture = Texture::create(width, height);
 	texture->useIn();
-	glTexImage2D(GL_TEXTURE_2D, 0, gl_format, width, height, 0, gl_format, GL_UNSIGNED_BYTE, cairo_image_surface_get_data(surface));
+	glTexImage2D(GL_TEXTURE_2D, 0, gl_internal_format, width, height, 0, gl_format, GL_UNSIGNED_BYTE, cairo_image_surface_get_data(surface));
 
 	return texture;
 }
