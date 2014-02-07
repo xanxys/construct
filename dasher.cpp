@@ -113,6 +113,9 @@ void Dasher::visualize(cairo_t* ctx) {
 	cairo_save(ctx);
 	cairo_scale(ctx, 250, 250);
 
+	cairo_scale(ctx, 1.0 / (2 * local_half_span), 1.0 / (2 * local_half_span));
+	cairo_translate(ctx, 0, -(local_index - local_half_span));
+
 	float accum_p = 0;
 	int color_type = 0;
 	for(auto& child : ProbNode::getChildren(current)) {
@@ -124,6 +127,14 @@ void Dasher::visualize(cairo_t* ctx) {
 		
 		cairo_rectangle(ctx, 0, accum_p, 1, child.first);
 		cairo_fill(ctx);
+
+		cairo_save(ctx);
+		cairo_set_source_rgb(ctx, 0, 0, 0);
+		cairo_translate(ctx, 0, accum_p);
+		cairo_scale(ctx, 0.003, 0.003);
+		cairo_translate(ctx, 1, 1);
+		cairo_show_text(ctx, child.second->getString().c_str());
+		cairo_restore(ctx);
 
 		accum_p += child.first;
 		color_type = (color_type + 1) % 2;
