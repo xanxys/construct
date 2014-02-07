@@ -1,5 +1,7 @@
 #include "dasher.h"
 
+#include <cassert>
+#include <iostream>
 
 std::shared_ptr<ProbNode> ProbNode::create() {
 	return std::shared_ptr<ProbNode>(new ProbNode(std::shared_ptr<ProbNode>(), ""));
@@ -40,12 +42,15 @@ Dasher::Dasher() {
 void Dasher::update(float dt, float rel_index, float rel_zoom) {
 	const float speed = 1.0;
 
-	local_half_span += dt * speed * rel_zoom;
+	local_half_span = std::max(local_half_span / 2, local_half_span + dt * speed * rel_zoom);
 	local_index += dt * speed * (rel_index * local_half_span);
 	fit();
+
+	// std::cout << local_index << "+-" << local_half_span << std::endl;
 }
 
 void Dasher::fit() {
+	assert(local_half_span > 0);
 	const float p0 = local_index - local_half_span;
 	const float p1 = local_index + local_half_span;
 	
@@ -123,6 +128,11 @@ void Dasher::visualize(cairo_t* ctx) {
 		accum_p += child.first;
 		color_type = (color_type + 1) % 2;
 	}
+
+	cairo_set_line_width(ctx, 0.01);
+	cairo_rectangle(ctx, 0, local_index - local_half_span, 1, local_half_span * 2);
+	cairo_set_source_rgb(ctx, 1, 0, 0);
+	cairo_stroke(ctx);
 
 	cairo_restore(ctx);
 }
