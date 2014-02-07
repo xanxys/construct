@@ -80,8 +80,21 @@ public:
 	void run();
 
 protected:
+	enum DisplayMode {
+		// Smaller window in whatever screen. Useful for debugging.
+		WINDOW,
+
+		// True fullscreen mode. Might show up on wrong screen and
+		// cause resolution-change mess. Avoid it. Slightly faster.
+		HMD_FULLSCREEN,
+
+		// Decoration-less window on top of rift screen. Works well, but
+		// strange window manager might cause distortion of window.
+		HMD_FRAMELESS,
+	};
+
 	void enableExtensions();
-	void init(bool windowed);
+	void init(DisplayMode mode);
 	void addInitialObjects();
 
 	// Update everything, and draw final image to the back buffer.
@@ -95,6 +108,8 @@ protected:
 	void usePreBuffer();
 	void useBackBuffer();
 	void updateDasherSurface();
+
+	void printDisplays();
 	
 	Object generateDasherQuadAt(float height, float dx, float dy, float dz);
 	Object generateTextQuadAt(std::string text, float height, float dx, float dy, float dz);
@@ -137,7 +152,7 @@ private:  // TODO: decouple members
 
 
 Application::Application(bool windowed) {
-	init(windowed);
+	init(windowed ? DisplayMode::WINDOW : DisplayMode::HMD_FRAMELESS);
 	v8::V8::Initialize();
 
 	v8::Isolate* isolate = v8::Isolate::GetCurrent();
@@ -240,7 +255,7 @@ Object Application::generateDasherQuadAt(float height_meter, float dx, float dy,
 void Application::updateDasherSurface() {
 	auto dir = getHeadDirection();
 
-	dasher.update(1.0 / 60, -dir.z * 100, dir.x * 100);
+	dasher.update(1.0 / 60, -dir.z * 10, -dir.x * 10);
 
 	auto ctx = cairo_create(dasher_surface);
 	dasher.visualize(ctx);
@@ -413,14 +428,40 @@ void Application::useBackBuffer() {
 	glDrawBuffer(GL_BACK);
 }
 
+void Application::printDisplays() {
+	int count;
+	GLFWmonitor** monitors = glfwGetMonitors(&count);
+
+	for(int i = 0; i < count; i++) {
+		auto monitor = monitors[i];
+
+		int width, height;
+		glfwGetMonitorPhysicalSize(monitor, &width, &height);
+
+		int px, py;
+		glfwGetMonitorPos(monitor, &px, &py);
+
+		std::cout <<
+			glfwGetMonitorName(monitor) << " : " <<
+			"size(mm) = (" << width << "," << height << ")" << " : " <<
+			"pos(px) = (" << px << "," << py << ")" << std::endl;
+
+		int mode_count;
+		const GLFWvidmode* modes = glfwGetVideoModes(monitor, &mode_count);
+		for(int i_mode = 0; i_mode < mode_count; i_mode++) {
+			std::cout << "* " << "(" << modes[i_mode].width << "," << modes[i_mode].height << ")" << std::endl;
+		}
+	}
+}
+
 // Try to find HMD monitor. return nullptr when in doubt (or not connected).
 GLFWmonitor* Application::findHMDMonitor(std::string name, int px, int py) {
 	int count;
 	GLFWmonitor** monitors = glfwGetMonitors(&count);
+	return monitors[1];
 
 	// Try to find exact name match.
 	for(int i = 0; i < count; i++) {
-		std::cout << "Checking " << glfwGetMonitorName(monitors[i]) << std::endl;
 		if(glfwGetMonitorName(monitors[i]) == name) {
 			return monitors[i];
 		}
@@ -431,7 +472,6 @@ GLFWmonitor* Application::findHMDMonitor(std::string name, int px, int py) {
 		int width;
 		int height;
 		glfwGetMonitorPhysicalSize(monitors[i], &width, &height);
-		std::cout << "Checking Size" << width << "," << height << std::endl;
 		
 		if(width == 150 && height == 94) {
 			return monitors[i];
@@ -443,7 +483,6 @@ GLFWmonitor* Application::findHMDMonitor(std::string name, int px, int py) {
 		int mx;
 		int my;
 		glfwGetMonitorPos(monitors[i], &mx, &my);
-		std::cout << "Checking Pos" << mx << "," << my << std::endl;
 		
 		if(mx == px && my == py) {
 			return monitors[i];
@@ -461,14 +500,14 @@ GLFWmonitor* Application::findHMDMonitor(std::string name, int px, int py) {
 	return nullptr;
 }
 
-void Application::init(bool windowed) {
+void Application::init(DisplayMode mode) {
+	bool use_true_fullscreen = false;
+
 	OVR::System::Init(OVR::Log::ConfigureDefaultLog(OVR::LogMask_All));
 	OVR::Ptr<OVR::DeviceManager> pManager = *OVR::DeviceManager::Create();
 	OVR::Ptr<OVR::HMDDevice> pHMD = *pManager->EnumerateDevices<OVR::HMDDevice>().CreateDevice();
 
 	pHMD->GetDeviceInfo(&hmd);
-
-
 	std::cout << "DisplayName: " << hmd.DisplayDeviceName << " at " << hmd.DesktopX << "," << hmd.DesktopY << std::endl;
 	
 
@@ -476,17 +515,40 @@ void Application::init(bool windowed) {
 		throw "Failed to initialize GLFW";
 	}
 
-	if(windowed) {
+	printDisplays();
+
+	if(mode == DisplayMode::WINDOW) {
 		screen_width = hmd.HResolution / 2;
 		screen_height = hmd.VResolution / 2;
-	} else {
+
+		window = glfwCreateWindow(screen_width, screen_height, "Construct", nullptr, nullptr);
+	} else if(mode == DisplayMode::HMD_FULLSCREEN) {
 		screen_width = hmd.HResolution;
 		screen_height = hmd.VResolution;
+
+		window = glfwCreateWindow(screen_width, screen_height, "Construct", findHMDMonitor(hmd.DisplayDeviceName, hmd.DesktopX, hmd.DesktopY), nullptr);
+	} else if(mode == DisplayMode::HMD_FRAMELESS) {
+		screen_width = hmd.HResolution;
+		screen_height = hmd.VResolution;
+
+		glfwWindowHint(GLFW_DECORATED, 0);
+		glfwWindowHint(GLFW_VISIBLE, 0);
+
+		auto monitor_hmd = findHMDMonitor(hmd.DisplayDeviceName, hmd.DesktopX, hmd.DesktopY);
+		window = glfwCreateWindow(screen_width, screen_height, "Construct", nullptr, nullptr);
+		
+		if(!monitor_hmd || !window) {
+			// TODO: implement proper error handling
+		}
+
+		int px, py;
+		glfwGetMonitorPos(monitor_hmd, &px, &py);
+		glfwSetWindowPos(window, px, py);
+		glfwShowWindow(window);
 	}
 	buffer_width = screen_width * 2;
-	buffer_height  = screen_height * 2;
+	buffer_height  = screen_height * 2;	
 	
-	window = glfwCreateWindow(screen_width, screen_height, "Construct", windowed ? nullptr : findHMDMonitor(hmd.DisplayDeviceName, hmd.DesktopX, hmd.DesktopY), NULL);
 	if(!window) {
 		glfwTerminate();
 		throw "Failed to create GLFW window";
