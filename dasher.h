@@ -40,7 +40,7 @@ private:
 
 	std::tuple<double, double, double> getNodeColor(std::shared_ptr<ProbNode> node);
 
-	void drawNode(std::shared_ptr<ProbNode> node, cairo_t* ctx);
+	void drawNode(std::shared_ptr<ProbNode> node, cairo_t* ctx, float p0, float p1);
 public:
 	// invariance: [local_index - local_half_span, local_index + local_half_span] is contained in [0, 1]
 	std::shared_ptr<ProbNode> current;
