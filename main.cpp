@@ -259,6 +259,7 @@ void Application::updateDasherSurface() {
 
 	auto ctx = cairo_create(dasher_surface);
 	dasher.visualize(ctx);
+	cairo_new_path(ctx);
 	cairo_arc(ctx, 125 + dir.x * 250, 125 - dir.z * 250, 10, 0, 2 * 3.1415);
 	cairo_set_source_rgb(ctx, 1, 0, 0);
 	cairo_set_line_width(ctx, 3);

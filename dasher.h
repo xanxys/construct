@@ -21,6 +21,10 @@ private:
 };
 
 
+// See D. Ward et al,
+// "Dasher - a Data Interface Using Continuous Gestures and Language Models"
+// http://www.inference.phy.cam.ac.uk/djw30/papers/uist2000.pdf
+// for details (not mine).
 class Dasher {
 public:
 	Dasher();
@@ -33,6 +37,8 @@ public:
 private:
 	// Adjust current (and clip values if needed) so that invariance will hold.
 	void fit();
+
+	void drawNode(std::shared_ptr<ProbNode> node, cairo_t* ctx);
 public:
 	// invariance: [local_index - local_half_span, local_index + local_half_span] is contained in [0, 1]
 	std::shared_ptr<ProbNode> current;

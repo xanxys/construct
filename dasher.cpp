@@ -113,9 +113,16 @@ void Dasher::visualize(cairo_t* ctx) {
 	cairo_save(ctx);
 	cairo_scale(ctx, 250, 250);
 
+	cairo_set_source_rgb(ctx, 1, 1, 1);
+	cairo_new_path(ctx);
+	cairo_rectangle(ctx, 0, 0, 1, 1);
+	cairo_fill(ctx);
+
+	cairo_translate(ctx, 1, 0);
 	cairo_scale(ctx, 1.0 / (2 * local_half_span), 1.0 / (2 * local_half_span));
 	cairo_translate(ctx, 0, -(local_index - local_half_span));
 
+	// draw in [-1,0] * [0,1]
 	float accum_p = 0;
 	int color_type = 0;
 	for(auto& child : ProbNode::getChildren(current)) {
@@ -125,14 +132,14 @@ void Dasher::visualize(cairo_t* ctx) {
 			cairo_set_source_rgb(ctx, 0.7, 0.7, 0.8);
 		}
 		
-		cairo_rectangle(ctx, 0, accum_p, 1, child.first);
+		cairo_rectangle(ctx, -child.first, accum_p, child.first, child.first);
 		cairo_fill(ctx);
 
 		cairo_save(ctx);
 		cairo_set_source_rgb(ctx, 0, 0, 0);
-		cairo_translate(ctx, 0, accum_p);
+		cairo_translate(ctx, -child.first, accum_p);
 		cairo_scale(ctx, 0.003, 0.003);
-		cairo_translate(ctx, 1, 1);
+		cairo_translate(ctx, 1, 10);
 		cairo_show_text(ctx, child.second->getString().c_str());
 		cairo_restore(ctx);
 
@@ -140,10 +147,15 @@ void Dasher::visualize(cairo_t* ctx) {
 		color_type = (color_type + 1) % 2;
 	}
 
+	/*
 	cairo_set_line_width(ctx, 0.01);
 	cairo_rectangle(ctx, 0, local_index - local_half_span, 1, local_half_span * 2);
 	cairo_set_source_rgb(ctx, 1, 0, 0);
 	cairo_stroke(ctx);
+	*/
 
 	cairo_restore(ctx);
+}
+
+void Dasher::drawNode(std::shared_ptr<ProbNode> node, cairo_t* ctx) {
 }
