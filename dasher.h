@@ -3,6 +3,7 @@
 #include <map>
 #include <memory>
 #include <string>
+#include <unordered_map>
 #include <vector>
 
 #include <cairo/cairo.h>
@@ -18,7 +19,7 @@ private:
 	const std::string alphabet;
 
 	std::map<char, float> letter_table_any;  // contain alpha + " "
-	std::map<std::string, std::map<char, float>> word1_prefix_table;
+	std::unordered_map<std::string, std::map<char, float>> word1_prefix_table;
 };
 
 class ProbNode {
