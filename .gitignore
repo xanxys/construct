@@ -2,5 +2,9 @@
 *.o
 construct
 
-OculusSDK/
+# downloaded by ./fetch_dictionary.sh
+count_1w.txt
+count_2w.txt
 
+# xyx
+OculusSDK/

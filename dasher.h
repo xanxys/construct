@@ -1,21 +1,40 @@
 #pragma once
 
+#include <map>
 #include <memory>
 #include <string>
 #include <vector>
 
 #include <cairo/cairo.h>
 
+class EnglishModel {
+public:
+	EnglishModel(std::string w1_file);
+
+	// Result contains alphabet + space, sums up to 1.
+	// prefix can be "", full word, or in between.
+	const std::map<char, float> nextCharGivenPrefix(std::string str);
+private:
+	const std::string alphabet;
+
+	std::map<char, float> letter_table_any;  // contain alpha + " "
+	std::map<std::string, std::map<char, float>> word1_prefix_table;
+};
+
 class ProbNode {
 public:  // common interface
-	static std::shared_ptr<ProbNode> create();
+	static std::shared_ptr<ProbNode> create(std::shared_ptr<EnglishModel> model);
 	static std::shared_ptr<ProbNode> getParent(std::shared_ptr<ProbNode> node);
 	static std::vector<std::pair<float, std::shared_ptr<ProbNode>>> getChildren(std::shared_ptr<ProbNode> node);
 
 	std::string getString();
 private:
-	ProbNode(std::shared_ptr<ProbNode> parent, std::string str);
+	ProbNode(std::shared_ptr<EnglishModel> model,
+		std::shared_ptr<ProbNode> parent, std::string str);
+	std::string getWordPrefix();
 private:
+	std::shared_ptr<EnglishModel> model;
+
 	std::string str;
 	std::shared_ptr<ProbNode> parent;
 };

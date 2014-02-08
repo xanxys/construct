@@ -1,30 +1,139 @@
 #include "dasher.h"
 
+#include <boost/algorithm/string.hpp>
 #include <cassert>
+#include <fstream>
 #include <iostream>
+#include <numeric>
 
-std::shared_ptr<ProbNode> ProbNode::create() {
-	return std::shared_ptr<ProbNode>(new ProbNode(std::shared_ptr<ProbNode>(), ""));
+
+EnglishModel::EnglishModel(std::string w1_file) :
+	alphabet("abcdefghijklmnopqrstuvwxyz") {
+	// Parse 1-word frequency table.
+	std::map<std::string, uint64_t> freq_table;
+
+	std::ifstream fs(w1_file);
+	while(!fs.eof()) {
+		std::string line;
+		std::getline(fs, line);
+
+		std::vector<std::string> entry;
+		boost::algorithm::split(entry, line, boost::is_any_of("\t"));
+
+		if(entry.size() != 2) {
+			continue;
+		}
+
+		try {
+			freq_table[entry[0]] = std::stol(entry[1]);
+		} catch(std::invalid_argument exc) {
+			// ignore
+		}
+	}
+
+	// Construct prefix table.
+	std::map<std::string, std::map<char, uint64_t>> prefix_table;
+	for(const auto& word_freq : freq_table) {
+		const std::string& word = word_freq.first;
+		const int freq = word_freq.second;
+
+		// Ignore empty word.
+		if(word.empty()) {
+			continue;
+		}
+
+		// "ab" -> "", "a", "ab"
+		for(int i = 0; i < word.size() + 1; i++) {
+			const std::string prefix = word.substr(0, i);
+			const char next = (i == word.size()) ? ' ' : word[i];
+
+			auto it = prefix_table.find(prefix);
+			if(it == prefix_table.end()) {
+				prefix_table[prefix] = std::map<char, uint64_t>({
+					{next, freq}
+				});
+			} else {
+				auto it_p = it->second.find(next);
+				if(it_p == it->second.end()) {
+					it->second[next] = freq;
+				} else {
+					it->second[next] += freq;
+				}
+			}
+		}
+	}
+	
+	// Normalize prefix table.
+	for(auto& prefix_e : prefix_table) {
+		uint64_t sum_char_freq = 0;
+		for(const auto& char_freq : prefix_e.second) {
+			sum_char_freq += char_freq.second;
+		}
+
+		std::map<char, float> ch_table;
+		for(auto& char_freq : prefix_e.second) {
+			ch_table[char_freq.first] = 
+				static_cast<float>(char_freq.second) / sum_char_freq;
+		}
+		word1_prefix_table[prefix_e.first] = ch_table;
+	}
+
+	// Create fall-back letter table.
+	for(char ch : alphabet + " ") {
+		letter_table_any[ch] =
+			(ch == 'e' ? 2.0 : 1.0) / (alphabet.size() + 1 + 1);
+	}
+}
+
+const std::map<char, float> EnglishModel::nextCharGivenPrefix(std::string prefix) {
+	// TODO: smoothing so that all characters appears with non-zero probability.
+	auto char_distrib = word1_prefix_table.find(prefix);
+	if(char_distrib != word1_prefix_table.end()) {
+		return char_distrib->second;
+	} else {
+		return letter_table_any;
+	}
+}
+
+std::shared_ptr<ProbNode> ProbNode::create(std::shared_ptr<EnglishModel> model) {
+	return std::shared_ptr<ProbNode>(new ProbNode(model, std::shared_ptr<ProbNode>(), ""));
 }
 
 std::shared_ptr<ProbNode> ProbNode::getParent(std::shared_ptr<ProbNode> node) {
 	return node->parent;
 }
 
+std::string ProbNode::getWordPrefix() {
+	std::string result;
+	ProbNode* iter = this;
+
+	while(iter && iter->getString() != " ") {
+		result = iter->getString() + result;
+		iter = iter->parent.get();
+	}
+
+	return result;
+}
+
 std::vector<std::pair<float, std::shared_ptr<ProbNode>>> ProbNode::getChildren(std::shared_ptr<ProbNode> node) {
 	std::vector<std::pair<float, std::shared_ptr<ProbNode>>> children;
 
-	std::string alphabet = "abcdefghijklmnopqrstuvwxyz ";
-	for(char ch : alphabet) {
+
+	const auto char_table = node->model->nextCharGivenPrefix(node->getWordPrefix());
+	for(const auto ch_prob : char_table) {
 		children.push_back(std::make_pair(
-			(ch == 'e' ? 2.0 : 1.0) / (alphabet.size() + 1),
-			std::shared_ptr<ProbNode>(new ProbNode(node, std::string(1, ch)))));
+			ch_prob.second,
+			std::shared_ptr<ProbNode>(new ProbNode(
+				node->model, node, std::string(1, ch_prob.first)))));
 	}
 
 	return children;
 }
 
-ProbNode::ProbNode(std::shared_ptr<ProbNode> parent, std::string str) : parent(parent), str(str) {
+ProbNode::ProbNode(
+	std::shared_ptr<EnglishModel> model,
+	std::shared_ptr<ProbNode> parent, std::string str) :
+	model(model), parent(parent), str(str) {
 }
 
 std::string ProbNode::getString() {
@@ -33,7 +142,7 @@ std::string ProbNode::getString() {
 
 
 Dasher::Dasher() {
-	current = ProbNode::create();
+	current = ProbNode::create(std::shared_ptr<EnglishModel>(new EnglishModel("count_1w.txt")));
 	local_index = 0;
 	local_half_span = 0.5;
 	fit();
