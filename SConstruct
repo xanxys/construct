@@ -19,6 +19,7 @@ env.Program(
 		'dasher.cpp',
 		'gl.cpp',
 		'main.cpp',
+		'scene.cpp',
 		],
 	LIBS = [
 		'libboost_system-mt',
