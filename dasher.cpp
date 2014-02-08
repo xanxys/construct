@@ -5,6 +5,7 @@
 #include <fstream>
 #include <iostream>
 #include <numeric>
+#include <thread>
 
 
 EnglishModel::EnglishModel(std::string w1_file) :
@@ -148,24 +149,33 @@ std::string ProbNode::getString() {
 }
 
 
-Dasher::Dasher() {
-	current = ProbNode::create(std::shared_ptr<EnglishModel>(new EnglishModel("count_1w.txt")));
+Dasher::Dasher() : model(nullptr) {
+	// Initiate model loading.
+	std::thread([this]() {
+		model.store(new EnglishModel("count_1w.txt"));
+	}).detach();
+
 	local_index = 0;
 	local_half_span = 0.5;
-	fit();
 }
 
 void Dasher::update(float dt, float rel_index, float rel_zoom) {
+	if(!current) {
+		if(model.load()) {
+			current = ProbNode::create(std::shared_ptr<EnglishModel>(model.load()));
+		} else {
+			return;
+		}
+	}
+	
 	const float speed = 1.0;
-
 	local_half_span = std::max(local_half_span / 2, local_half_span + dt * speed * rel_zoom);
 	local_index += dt * speed * (rel_index * local_half_span);
 	fit();
-
-	// std::cout << local_index << "+-" << local_half_span << std::endl;
 }
 
 void Dasher::fit() {
+	assert(current);
 	assert(local_half_span > 0);
 	const float p0 = local_index - local_half_span;
 	const float p1 = local_index + local_half_span;
@@ -239,7 +249,9 @@ void Dasher::visualize(cairo_t* ctx) {
 	cairo_translate(ctx, 0, -(local_index - local_half_span));
 
 	// draw in [-1,0] * [0,1]
-	drawNode(current, ctx, 0, 1);
+	if(current) {
+		drawNode(current, ctx, 0, 1);
+	}
 
 	cairo_restore(ctx);
 }

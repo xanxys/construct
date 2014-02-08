@@ -2,7 +2,7 @@
 import os
 env = Environment(
 	CXX = "clang++",
-	CXXFLAGS = '-std=c++11 -g',
+	CXXFLAGS = '-std=c++11 -g -pthread',
 	CCFLAGS = ['-O3'],
 	CPPPATH = [
 		'LibOVR/Include',
@@ -32,7 +32,6 @@ env.Program(
 		'libglfw',
 		'libjsoncpp',
 		'libovr',
-		'libpthread',
 		'libudev',
 		'libv8',
 		'libX11',
