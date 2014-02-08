@@ -1,5 +1,6 @@
 #include <array>
 #include <fstream>
+#include <functional>
 #include <iostream>
 #include <map>
 #include <memory>
@@ -50,9 +51,11 @@
 
 class NativeScript;
 
+class Scene;
+
 class Object {
 public:
-	Object();
+	Object(Scene& scene);
 
 	OVR::Vector3f center;
 
@@ -65,11 +68,30 @@ public:
 
 
 	std::unique_ptr<NativeScript> nscript;
+
+	void addMessage(Json::Value value);
+	boost::optional<Json::Value> getMessage();
+
+	Scene& scene;
 private:
 	std::vector<Json::Value> queue;
 };
 
-Object::Object() : use_blend(false) {
+Object::Object(Scene& scene) : scene(scene), use_blend(false) {
+}
+
+void Object::addMessage(Json::Value value) {
+	queue.push_back(value);
+}
+
+boost::optional<Json::Value> Object::getMessage() {
+	if(queue.empty()) {
+		return boost::optional<Json::Value>();
+	} else {
+		auto elem = queue.back();
+		queue.pop_back();
+		return boost::optional<Json::Value>(elem);
+	}
 }
 
 
@@ -83,7 +105,6 @@ NativeScript::NativeScript() {
 }
 
 void NativeScript::step(float dt, Object& object) {
-
 }
 
 typedef uint64_t ObjectId;
@@ -97,6 +118,8 @@ public:
 
 	void render();
 	std::map<ObjectId, std::unique_ptr<Object>> objects;
+
+	void sendMessage(ObjectId destination, Json::Value value);
 private:
 	ObjectId new_id;
 };
@@ -106,12 +129,19 @@ Scene::Scene() {
 
 ObjectId Scene::add() {
 	const ObjectId id = new_id++;
-	objects[id] = std::unique_ptr<Object>(new Object());
+	objects[id] = std::unique_ptr<Object>(new Object(*this));
 	return id;
 }
 
 Object& Scene::unsafeGet(ObjectId id) {
 	return *objects[id].get();
+}
+
+void Scene::sendMessage(ObjectId destination, Json::Value value) {
+	auto it = objects.find(destination);
+	if(it != objects.end()) {
+		it->second->addMessage(value);
+	}
 }
 
 void Scene::render() {
@@ -136,26 +166,108 @@ void Scene::render() {
 	}
 }
 
-
-
 class DasherScript : public NativeScript {
 public:
+	DasherScript(
+		std::function<OVR::Vector3f()> getHeadDirection,
+		cairo_surface_t* surface, ObjectId label);
+	~DasherScript();
+
 	void step(float dt, Object& object) override;
 private:
+	Dasher dasher;
+	ObjectId label;
 
+	// TODO: unsafe reference to Core. Remove.
+	std::function<OVR::Vector3f()> getHeadDirection;
+
+	cairo_surface_t* dasher_surface;
 };
 
-void DasherScript::step(float dt, Object& object) {
-
+DasherScript::DasherScript(
+	std::function<OVR::Vector3f()> getHeadDirection,
+	cairo_surface_t* surface, ObjectId label) :
+	getHeadDirection(getHeadDirection), dasher_surface(surface), label(label) {
 }
 
-class Application {
+DasherScript::~DasherScript() {
+	cairo_surface_destroy(dasher_surface);
+}
+
+void DasherScript::step(float dt, Object& object) {
+	auto dir = getHeadDirection();
+
+	dasher.update(1.0 / 60, -dir.z * 10, -dir.x * 1);
+
+	auto ctx = cairo_create(dasher_surface);
+	dasher.visualize(ctx);
+	cairo_new_path(ctx);
+	cairo_arc(ctx, 125 + dir.x * 250, 125 - dir.z * 250, 10, 0, 2 * 3.1415);
+	cairo_set_source_rgb(ctx, 1, 0, 0);
+	cairo_set_line_width(ctx, 3);
+	cairo_stroke(ctx);
+	cairo_destroy(ctx);
+
+	object.texture->useIn();
+	glTexImage2D(GL_TEXTURE_2D, 0, GL_RGBA,
+		cairo_image_surface_get_width(dasher_surface),
+		cairo_image_surface_get_height(dasher_surface),
+		0, GL_BGRA, GL_UNSIGNED_BYTE,
+		cairo_image_surface_get_data(dasher_surface));
+
+
+	object.scene.sendMessage(label, Json::Value(dasher.getFixed()));
+}
+
+
+class TextLabelScript : public NativeScript {
 public:
-	Application(bool windowed = false);
+	TextLabelScript(cairo_surface_t* surface);
+	~TextLabelScript();
+
+	void step(float dt, Object& object) override;
+private:
+	cairo_surface_t* surface;
+};
+
+TextLabelScript::TextLabelScript(cairo_surface_t* surface) : surface(surface) {
+}
+
+TextLabelScript::~TextLabelScript() {
+	cairo_surface_destroy(surface);
+}
+
+void TextLabelScript::step(float dt, Object& object) {
+	auto message = object.getMessage();
+	if(message && message->isString()) {
+		const std::string text = message->asString();
+
+		auto ctx = cairo_create(surface);
+		cairo_set_source_rgb(ctx, 1, 1, 1);
+		cairo_paint(ctx);
+
+		cairo_set_source_rgb(ctx, 0, 0, 0);
+		cairo_set_font_size(ctx, 30);
+		cairo_translate(ctx, 10, 50);
+		cairo_show_text(ctx, text.c_str());
+		cairo_destroy(ctx);
+
+		object.texture->useIn();
+		glTexImage2D(GL_TEXTURE_2D, 0, GL_RGBA,
+			cairo_image_surface_get_width(surface),
+			cairo_image_surface_get_height(surface),
+			0, GL_BGRA, GL_UNSIGNED_BYTE,
+			cairo_image_surface_get_data(surface));
+	}
+}
+
+
+class Core {
+public:
+	Core(bool windowed = false);
 
 	// Blocking call to run event loop.
 	void run();
-
 protected:
 	enum DisplayMode {
 		// Smaller window in whatever screen. Useful for debugging.
@@ -187,24 +299,14 @@ protected:
 
 	void usePreBuffer();
 	void useBackBuffer();
-	void updateDasherSurface();
 
 	void printDisplays();
 	
-	void attachDasherQuadAt(Object& object, float height, float dx, float dy, float dz);
+	void attachDasherQuadAt(Object& object, ObjectId label, float height, float dx, float dy, float dz);
 	void attachTextQuadAt(Object& object, std::string text, float height, float dx, float dy, float dz);
 
 	std::shared_ptr<Texture> createTextureFromSurface(cairo_surface_t* surface);
-private:  // TODO: decouple members
-	// Scene - dasher things.
-	Dasher dasher;
-	ObjectId dasher_object;
-	cairo_surface_t* dasher_surface;
-
-	// Scene - text input.
-	ObjectId input_object;
-	cairo_surface_t* input_surface;
-
+private:
 	// GL - Scene things.
 	Scene scene;
 
@@ -213,6 +315,8 @@ private:  // TODO: decouple members
 	std::shared_ptr<Shader> warp_shader;
 
 	OVR::Vector3f eye_position;
+
+	int native_script_counter;
 
 	// OVR-GL things.
 	GLuint FramebufferName;
@@ -231,12 +335,10 @@ private:  // TODO: decouple members
 
 	std::shared_ptr<Geometry> proxy;
 	std::shared_ptr<Texture> pre_buffer;
-
-	int counter_d;
 };
 
 
-Application::Application(bool windowed) {
+Core::Core(bool windowed) : native_script_counter(0) {
 	init(windowed ? DisplayMode::WINDOW : DisplayMode::HMD_FRAMELESS);
 	v8::V8::Initialize();
 
@@ -262,7 +364,7 @@ Application::Application(bool windowed) {
 	addInitialObjects();
 }
 
-void Application::addInitialObjects() {
+void Core::addInitialObjects() {
 	// Tiles
 	for(int i = -5; i <= 5; i++) {
 		for(int j = -5; j <= 5; j++) {
@@ -288,20 +390,17 @@ void Application::addInitialObjects() {
 	}
 
 
-	// TODO: fix this mess ASAP (by using NativeScript)
 	attachTextQuadAt(scene.unsafeGet(scene.add()), "はろーわーるど", 0.1, 0, 1, 1.8);
-	cairo_surface_destroy(input_surface);
 
-	input_object = scene.add();
+	ObjectId input_object = scene.add();
 	attachTextQuadAt(scene.unsafeGet(input_object), "Construct", 0.15, 0, 1, 1.0);	
 
-	dasher_object = scene.add();
-	attachDasherQuadAt(scene.unsafeGet(dasher_object), 0.5, 0, 0.9, 1.4);
+	attachDasherQuadAt(scene.unsafeGet(scene.add()), input_object, 0.5, 0, 0.9, 1.4);
 
 	eye_position = OVR::Vector3f(0, 0, 1.4);
 }
 
-void Application::attachDasherQuadAt(Object& object, float height_meter, float dx, float dy, float dz) {
+void Core::attachDasherQuadAt(Object& object, ObjectId label, float height_meter, float dx, float dy, float dz) {
 	const float aspect_estimate = 1.0;
 	const float px_per_meter = 500;
 
@@ -311,9 +410,10 @@ void Application::attachDasherQuadAt(Object& object, float height_meter, float d
 	const int width_px = px_per_meter * width_meter;
 	const int height_px = px_per_meter * height_meter;
 
-	dasher_surface = cairo_image_surface_create(CAIRO_FORMAT_ARGB32, width_px, height_px);
+	cairo_surface_t* dasher_surface = cairo_image_surface_create(CAIRO_FORMAT_ARGB32, width_px, height_px);
 	auto c_context = cairo_create(dasher_surface);
-	dasher.visualize(c_context);
+	cairo_set_source_rgb(c_context, 1, 1, 1);
+	cairo_paint(c_context);
 	cairo_destroy(c_context);
 	auto texture = createTextureFromSurface(dasher_surface);
 
@@ -337,56 +437,11 @@ void Application::attachDasherQuadAt(Object& object, float height_meter, float d
 	object.geometry = Geometry::createPosUV(6, vertex_pos_uv);
 	object.texture = texture;
 	object.use_blend = true;
+	object.nscript.reset(new DasherScript(
+		std::bind(std::mem_fn(&Core::getHeadDirection), this), dasher_surface, label));
 }
 
-void Application::updateDasherSurface() {
-	auto dir = getHeadDirection();
-
-	dasher.update(1.0 / 60, -dir.z * 10, -dir.x * 1);
-
-	auto ctx = cairo_create(dasher_surface);
-	dasher.visualize(ctx);
-	cairo_new_path(ctx);
-	cairo_arc(ctx, 125 + dir.x * 250, 125 - dir.z * 250, 10, 0, 2 * 3.1415);
-	cairo_set_source_rgb(ctx, 1, 0, 0);
-	cairo_set_line_width(ctx, 3);
-	cairo_stroke(ctx);
-	cairo_destroy(ctx);
-
-
-	const int width = 250;
-	const int height = 250;
-
-	scene.unsafeGet(dasher_object).texture->useIn();
-	glTexImage2D(GL_TEXTURE_2D, 0, GL_RGBA,
-		width, height,
-		0, GL_BGRA, GL_UNSIGNED_BYTE,
-		cairo_image_surface_get_data(dasher_surface));
-
-
-	// update text
-	{
-		auto ctx = cairo_create(input_surface);
-		cairo_set_source_rgb(ctx, 1, 1, 1);
-		cairo_paint(ctx);
-
-		cairo_set_source_rgb(ctx, 0, 0, 0);
-		cairo_set_font_size(ctx, 30);
-		cairo_translate(ctx, 10, 50);
-		cairo_show_text(ctx, dasher.getFixed().c_str());
-		cairo_destroy(ctx);
-
-		scene.unsafeGet(input_object).texture->useIn();
-		glTexImage2D(GL_TEXTURE_2D, 0, GL_RGBA,
-			cairo_image_surface_get_width(input_surface),
-			cairo_image_surface_get_height(input_surface),
-			0, GL_BGRA, GL_UNSIGNED_BYTE,
-			cairo_image_surface_get_data(input_surface));
-	}
-	
-}
-
-void Application::attachTextQuadAt(Object& object, std::string text, float height_meter, float dx, float dy, float dz) {
+void Core::attachTextQuadAt(Object& object, std::string text, float height_meter, float dx, float dy, float dz) {
 	const float aspect_estimate = text.size() / 3.0f;  // assuming japanese letters in UTF-8.
 	const float px_per_meter = 500;
 
@@ -410,7 +465,6 @@ void Application::attachTextQuadAt(Object& object, std::string text, float heigh
 	cairo_show_text(c_context, text.c_str());
 	cairo_destroy(c_context);
 	auto texture = createTextureFromSurface(surf);
-	input_surface = surf;
 
 	std::cout << "ISize:" << width_px << " * " << height_px << std::endl;
 
@@ -434,9 +488,10 @@ void Application::attachTextQuadAt(Object& object, std::string text, float heigh
 	object.geometry = Geometry::createPosUV(6, vertex_pos_uv);
 	object.texture = texture;
 	object.use_blend = true;
+	object.nscript.reset(new TextLabelScript(surf));
 }
 
-std::shared_ptr<Texture> Application::createTextureFromSurface(cairo_surface_t* surface) {
+std::shared_ptr<Texture> Core::createTextureFromSurface(cairo_surface_t* surface) {
 	// Convert cairo format to GL format.
 	GLint gl_internal_format;
 	GLint gl_format;
@@ -463,14 +518,14 @@ std::shared_ptr<Texture> Application::createTextureFromSurface(cairo_surface_t* 
 }
 
 
-void Application::enableExtensions() {
+void Core::enableExtensions() {
 	GLenum err = glewInit();
 	if(GLEW_OK != err) {
 		throw glewGetErrorString(err);
 	}
 }
 
-std::pair<OVR::Matrix4f, OVR::Matrix4f> Application::calcHMDProjection(float scale) {
+std::pair<OVR::Matrix4f, OVR::Matrix4f> Core::calcHMDProjection(float scale) {
 	// Compute Aspect Ratio. Stereo mode cuts width in half.
 	const float aspectRatio = float(hmd.HResolution * 0.5f) / float(hmd.VResolution);
 
@@ -511,7 +566,7 @@ std::pair<OVR::Matrix4f, OVR::Matrix4f> Application::calcHMDProjection(float sca
 		projRight * viewRight * hmdMat *  world);
 }
 
-OVR::Vector3f Application::getHeadDirection() {
+OVR::Vector3f Core::getHeadDirection() {
 	OVR::Quatf hmdOrient = sensor_fusion->GetOrientation();
 	OVR::Matrix4f hmdMat(hmdOrient);
 
@@ -520,7 +575,7 @@ OVR::Vector3f Application::getHeadDirection() {
 	return (ovr_to_world * hmdMat).Transform(OVR::Vector3f(0, 0, -1));
 }
 
-void Application::usePreBuffer() {
+void Core::usePreBuffer() {
 	// Set attachment 0.
 	glBindFramebuffer(GL_FRAMEBUFFER, FramebufferName);
 
@@ -533,12 +588,12 @@ void Application::usePreBuffer() {
 	}
 }
 
-void Application::useBackBuffer() {
+void Core::useBackBuffer() {
 	glBindFramebuffer(GL_FRAMEBUFFER, 0);
 	glDrawBuffer(GL_BACK);
 }
 
-void Application::printDisplays() {
+void Core::printDisplays() {
 	int count;
 	GLFWmonitor** monitors = glfwGetMonitors(&count);
 
@@ -565,7 +620,7 @@ void Application::printDisplays() {
 }
 
 // Try to find HMD monitor. return nullptr when in doubt (or not connected).
-GLFWmonitor* Application::findHMDMonitor(std::string name, int px, int py) {
+GLFWmonitor* Core::findHMDMonitor(std::string name, int px, int py) {
 	int count;
 	GLFWmonitor** monitors = glfwGetMonitors(&count);
 	return monitors[1];
@@ -610,7 +665,7 @@ GLFWmonitor* Application::findHMDMonitor(std::string name, int px, int py) {
 	return nullptr;
 }
 
-void Application::init(DisplayMode mode) {
+void Core::init(DisplayMode mode) {
 	bool use_true_fullscreen = false;
 
 	OVR::System::Init(OVR::Log::ConfigureDefaultLog(OVR::LogMask_All));
@@ -700,20 +755,21 @@ void Application::init(DisplayMode mode) {
 	warp_shader = Shader::create("warp.vs", "warp.fs");
 }
 
-void Application::step() {
-	updateDasherSurface();
-
-	// TODO: interleave execution of step. Normal GUI
-	// doesn't require 60fps. (All critical process must
-	// be Turing-incomplete and handled by the system)
+void Core::step() {
+	// Native Script expects 30fps
+	// Running at 60fps
+	// -> load balance with modulo 2 of ObjectId
 	for(auto& object : scene.objects) {
 		if(object.second->nscript) {
-			object.second->nscript->step(1.0 / 60, *object.second.get());
+			if(object.first % 2 == native_script_counter) {
+				object.second->nscript->step(1.0 / 60, *object.second.get());
+			}
 		}
 	}
+	native_script_counter = (native_script_counter + 1) % 2;
 }
 
-void Application::render() {
+void Core::render() {
 	// rectangle spanning [-1, 1]^2
 	if(!proxy) {
 		const GLfloat vertex_pos[] = {
@@ -801,7 +857,7 @@ void Application::render() {
 	}
 }
 
-void Application::run() {
+void Core::run() {
 	try {
 		while(!glfwWindowShouldClose(window)) {
 			step();
@@ -829,8 +885,8 @@ int main(int argc, char** argv) {
 		windowed = true;
 	}
 
-	Application app(windowed);
-	app.run();
+	Core core(windowed);
+	core.run();
 
 	return 0;
 }
