@@ -1,12 +1,14 @@
 #include <array>
 #include <fstream>
 #include <iostream>
+#include <map>
 #include <memory>
 #include <string>
 #include <vector>
 
 #include <boost/optional.hpp>
 #include <cairo/cairo.h>
+#include <jsoncpp/json/json.h>
 #include <GL/glew.h>
 #include <GL/glfw3.h>
 #include <v8.h>
@@ -52,6 +54,8 @@ class Object {
 public:
 	Object();
 
+	OVR::Vector3f center;
+
 	bool use_blend;
 	std::shared_ptr<Geometry> geometry;
 	std::shared_ptr<Shader> shader;
@@ -61,6 +65,8 @@ public:
 
 
 	std::unique_ptr<NativeScript> nscript;
+private:
+	std::vector<Json::Value> queue;
 };
 
 Object::Object() : use_blend(false) {
@@ -80,19 +86,38 @@ void NativeScript::step(float dt, Object& object) {
 
 }
 
+typedef uint64_t ObjectId;
+
 class Scene {
 public:
 	Scene();
 
+	ObjectId add();
+	Object& unsafeGet(ObjectId);
+
 	void render();
-	std::vector<std::unique_ptr<Object>> objects;
+	std::map<ObjectId, std::unique_ptr<Object>> objects;
+private:
+	ObjectId new_id;
 };
 
 Scene::Scene() {
 }
 
+ObjectId Scene::add() {
+	const ObjectId id = new_id++;
+	objects[id] = std::unique_ptr<Object>(new Object());
+	return id;
+}
+
+Object& Scene::unsafeGet(ObjectId id) {
+	return *objects[id].get();
+}
+
 void Scene::render() {
-	for(auto& object : objects) {
+	for(auto& pair : objects) {
+		auto& object = pair.second;
+
 		if(object->use_blend) {
 			glEnable(GL_BLEND);
 			glBlendFunc(GL_SRC_ALPHA, GL_ONE);
@@ -166,17 +191,18 @@ protected:
 
 	void printDisplays();
 	
-	std::unique_ptr<Object> generateDasherQuadAt(float height, float dx, float dy, float dz);
-	std::unique_ptr<Object> generateTextQuadAt(std::string text, float height, float dx, float dy, float dz);
+	void attachDasherQuadAt(Object& object, float height, float dx, float dy, float dz);
+	void attachTextQuadAt(Object& object, std::string text, float height, float dx, float dy, float dz);
+
 	std::shared_ptr<Texture> createTextureFromSurface(cairo_surface_t* surface);
 private:  // TODO: decouple members
 	// Scene - dasher things.
 	Dasher dasher;
-	Object* dasher_object;
+	ObjectId dasher_object;
 	cairo_surface_t* dasher_surface;
 
 	// Scene - text input.
-	Object* input_object;
+	ObjectId input_object;
 	cairo_surface_t* input_surface;
 
 	// GL - Scene things.
@@ -255,28 +281,27 @@ void Application::addInitialObjects() {
 				g_vertex_buffer_data[k * 3 + 1] += j;
 			}
 
-		 	auto obj = std::unique_ptr<Object>(new Object());
-			obj->shader = standard_shader;
-			obj->geometry = Geometry::createPos(6, &g_vertex_buffer_data[0]);
-			scene.objects.push_back(std::move(obj));
+		 	auto& obj = scene.unsafeGet(scene.add());
+			obj.shader = standard_shader;
+			obj.geometry = Geometry::createPos(6, &g_vertex_buffer_data[0]);
 		}
 	}
 
 
 	// TODO: fix this mess ASAP (by using NativeScript)
-	scene.objects.push_back(generateTextQuadAt("はろーわーるど", 0.1, 0, 1, 1.8));
+	attachTextQuadAt(scene.unsafeGet(scene.add()), "はろーわーるど", 0.1, 0, 1, 1.8);
 	cairo_surface_destroy(input_surface);
 
-	scene.objects.push_back(generateTextQuadAt("Construct", 0.15, 0, 1, 1.0));
-	input_object = scene.objects[scene.objects.size() - 1].get();
-	
-	scene.objects.push_back(generateDasherQuadAt(0.5, 0, 0.9, 1.4));
-	dasher_object = scene.objects[scene.objects.size() - 1].get();
+	input_object = scene.add();
+	attachTextQuadAt(scene.unsafeGet(input_object), "Construct", 0.15, 0, 1, 1.0);	
+
+	dasher_object = scene.add();
+	attachDasherQuadAt(scene.unsafeGet(dasher_object), 0.5, 0, 0.9, 1.4);
 
 	eye_position = OVR::Vector3f(0, 0, 1.4);
 }
 
-std::unique_ptr<Object> Application::generateDasherQuadAt(float height_meter, float dx, float dy, float dz) {
+void Application::attachDasherQuadAt(Object& object, float height_meter, float dx, float dy, float dz) {
 	const float aspect_estimate = 1.0;
 	const float px_per_meter = 500;
 
@@ -308,13 +333,10 @@ std::unique_ptr<Object> Application::generateDasherQuadAt(float height_meter, fl
 		vertex_pos_uv[5 * i + 2] = dz + vertex_pos_uv[5 * i + 2] * 0.5 * height_meter;
 	}
 
-	auto obj = std::unique_ptr<Object>(new Object());
-	obj->shader = texture_shader;
-	obj->geometry = Geometry::createPosUV(6, vertex_pos_uv);
-	obj->texture = texture;
-	obj->use_blend = true;
-
-	return obj;
+	object.shader = texture_shader;
+	object.geometry = Geometry::createPosUV(6, vertex_pos_uv);
+	object.texture = texture;
+	object.use_blend = true;
 }
 
 void Application::updateDasherSurface() {
@@ -332,13 +354,10 @@ void Application::updateDasherSurface() {
 	cairo_destroy(ctx);
 
 
-	
-
-
 	const int width = 250;
 	const int height = 250;
 
-	dasher_object->texture->useIn();
+	scene.unsafeGet(dasher_object).texture->useIn();
 	glTexImage2D(GL_TEXTURE_2D, 0, GL_RGBA,
 		width, height,
 		0, GL_BGRA, GL_UNSIGNED_BYTE,
@@ -357,7 +376,7 @@ void Application::updateDasherSurface() {
 		cairo_show_text(ctx, dasher.getFixed().c_str());
 		cairo_destroy(ctx);
 
-		input_object->texture->useIn();
+		scene.unsafeGet(input_object).texture->useIn();
 		glTexImage2D(GL_TEXTURE_2D, 0, GL_RGBA,
 			cairo_image_surface_get_width(input_surface),
 			cairo_image_surface_get_height(input_surface),
@@ -367,7 +386,7 @@ void Application::updateDasherSurface() {
 	
 }
 
-std::unique_ptr<Object> Application::generateTextQuadAt(std::string text, float height_meter, float dx, float dy, float dz) {
+void Application::attachTextQuadAt(Object& object, std::string text, float height_meter, float dx, float dy, float dz) {
 	const float aspect_estimate = text.size() / 3.0f;  // assuming japanese letters in UTF-8.
 	const float px_per_meter = 500;
 
@@ -411,13 +430,10 @@ std::unique_ptr<Object> Application::generateTextQuadAt(std::string text, float 
 		vertex_pos_uv[5 * i + 2] = dz + vertex_pos_uv[5 * i + 2] * 0.5 * height_meter;
 	}
 
-	auto obj = std::unique_ptr<Object>(new Object());
-	obj->shader = texture_shader;
-	obj->geometry = Geometry::createPosUV(6, vertex_pos_uv);
-	obj->texture = texture;
-	obj->use_blend = true;
-
-	return obj;
+	object.shader = texture_shader;
+	object.geometry = Geometry::createPosUV(6, vertex_pos_uv);
+	object.texture = texture;
+	object.use_blend = true;
 }
 
 std::shared_ptr<Texture> Application::createTextureFromSurface(cairo_surface_t* surface) {
@@ -691,8 +707,8 @@ void Application::step() {
 	// doesn't require 60fps. (All critical process must
 	// be Turing-incomplete and handled by the system)
 	for(auto& object : scene.objects) {
-		if(object->nscript) {
-			object->nscript->step(1.0 / 60, *object.get());
+		if(object.second->nscript) {
+			object.second->nscript->step(1.0 / 60, *object.second.get());
 		}
 	}
 }

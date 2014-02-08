@@ -28,6 +28,7 @@ env.Program(
 		'libGL',
 		'libGLEW',
 		'libglfw',
+		'libjsoncpp',
 		'libovr',
 		'libpthread',
 		'libudev',
