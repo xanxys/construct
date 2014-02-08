@@ -20,6 +20,7 @@ env.Program(
 		'gl.cpp',
 		'main.cpp',
 		'scene.cpp',
+		'ui.cpp',
 		],
 	LIBS = [
 		'libboost_system-mt',
