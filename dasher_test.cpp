@@ -55,4 +55,10 @@ TEST_F(LangModelTest, NodeProbIsValid) {
 		EXPECT_FLOAT_EQ(1, sum);
 	}
 }
-	
+
+TEST_F(LangModelTest, FixedStringStartsEmpty) {
+	Dasher dasher(model);
+
+	// "Fixed" input must be empty at the beginning.
+	EXPECT_EQ("", dasher.getFixed());
+}

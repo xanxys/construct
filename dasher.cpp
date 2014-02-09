@@ -167,6 +167,12 @@ Dasher::Dasher() : model(nullptr) {
 	local_half_span = 0.5;
 }
 
+Dasher::Dasher(std::shared_ptr<EnglishModel> model) :
+	current(ProbNode::create(model)) {
+	local_index = 0;
+	local_half_span = 0.5;	
+}
+
 void Dasher::update(float dt, float rel_index, float rel_zoom) {
 	if(!current) {
 		if(model.load()) {

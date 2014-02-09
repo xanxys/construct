@@ -52,6 +52,7 @@ private:
 class Dasher {
 public:
 	Dasher();
+	Dasher(std::shared_ptr<EnglishModel> model);
 
 	// Get probable input.
 	std::string getFixed();
