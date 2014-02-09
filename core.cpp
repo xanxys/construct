@@ -423,9 +423,9 @@ void Core::init(DisplayMode mode) {
 	glFramebufferTexture(GL_FRAMEBUFFER, GL_COLOR_ATTACHMENT0, pre_buffer->unsafeGetId(), 0);
 
 	//
-	standard_shader = Shader::create("base.vs", "base.fs");
-	texture_shader = Shader::create("tex.vs", "tex.fs");
-	warp_shader = Shader::create("warp.vs", "warp.fs");
+	standard_shader = Shader::create("gpu/base.vs", "gpu/base.fs");
+	texture_shader = Shader::create("gpu/tex.vs", "gpu/tex.fs");
+	warp_shader = Shader::create("gpu/warp.vs", "gpu/warp.fs");
 }
 
 void Core::step() {
