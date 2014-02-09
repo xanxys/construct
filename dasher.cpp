@@ -183,7 +183,7 @@ void Dasher::update(float dt, float rel_index, float rel_zoom) {
 	}
 
 	const float speed = 1.0;
-	local_half_span = std::max(local_half_span / 2, local_half_span + dt * speed * rel_zoom);
+	local_half_span = std::max(local_half_span / 4, local_half_span + dt * local_half_span * speed * rel_zoom);
 	local_index += dt * speed * (rel_index * local_half_span);
 	fit();
 }
