@@ -62,7 +62,7 @@ EnglishModel::EnglishModel(std::string w1_file) :
 		}
 	}
 	
-	// Normalize prefix table.
+	// Smooth & Normalize prefix table.
 	word1_prefix_table.reserve(est_num_prefix);
 	for(auto& prefix_e : prefix_table) {
 		uint64_t sum_char_freq = 0;
@@ -71,11 +71,24 @@ EnglishModel::EnglishModel(std::string w1_file) :
 		}
 
 		std::map<char, float> ch_table;
-		for(auto& char_freq : prefix_e.second) {
+		for(const auto& char_freq : prefix_e.second) {
 			assert(char_freq.second <= sum_char_freq);
 
 			ch_table[char_freq.first] = 
 				static_cast<float>(char_freq.second) / sum_char_freq;
+		}
+
+		// Smooth distribution by giving additional 0.001 probability for all chars.
+		float sum_new_prob = 0;
+		for(char ch : alphabet + " ") {
+			auto insertion = ch_table.emplace(ch, 0);
+			insertion.first->second += 0.001;
+			sum_new_prob += insertion.first->second;
+		}
+
+		// Re-normalize.
+		for(auto& char_prob : ch_table) {
+			char_prob.second /= sum_new_prob;
 		}
 
 		word1_prefix_table[prefix_e.first] = ch_table;
@@ -259,6 +272,8 @@ std::tuple<double, double, double> Dasher::getNodeColor(
 	}
 }
 
+// TODO: node should have aspect > 1, because when a child of a node is
+// almost 0, there's no space for characters.
 void Dasher::drawNode(std::shared_ptr<ProbNode> node, cairo_t* ctx, float p0, float p1) {
 	const float dp = p1 - p0;
 	assert(dp <= 1.0);
@@ -286,12 +301,14 @@ void Dasher::drawNode(std::shared_ptr<ProbNode> node, cairo_t* ctx, float p0, fl
 	cairo_fill(ctx);
 
 	// Show text.
+	const std::string input_string = node->getString();
+	const std::string display_string = (input_string == " ") ? "␣" : input_string;
 	cairo_save(ctx);
 	cairo_set_source_rgb(ctx, 0, 0, 0);
 	cairo_translate(ctx, -dp, p0);
-	cairo_scale(ctx, 0.003, 0.003);
-	cairo_translate(ctx, 1, 10);
-	cairo_show_text(ctx, node->getString().c_str());
+	cairo_scale(ctx, dp * 0.1, dp * 0.1);
+	cairo_translate(ctx, 0, 5);
+	cairo_show_text(ctx, display_string.c_str());
 	cairo_restore(ctx);
 
 	// Draw children.
