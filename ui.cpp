@@ -19,11 +19,20 @@ void DasherScript::step(float dt, Object& object) {
 
 	auto ctx = cairo_create(dasher_surface);
 	dasher.visualize(ctx);
+
+	// center
+	cairo_new_path(ctx);
+	cairo_arc(ctx, 125, 125, 1, 0, 2 * 3.1415);
+	cairo_set_source_rgb(ctx, 1, 0, 0);
+	cairo_fill(ctx);
+
+	// cursor
 	cairo_new_path(ctx);
 	cairo_arc(ctx, 125 + dir.x * 250, 125 - dir.z * 250, 10, 0, 2 * 3.1415);
 	cairo_set_source_rgb(ctx, 1, 0, 0);
 	cairo_set_line_width(ctx, 3);
 	cairo_stroke(ctx);
+
 	cairo_destroy(ctx);
 
 	object.texture->useIn();

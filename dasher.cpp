@@ -234,13 +234,45 @@ void Dasher::fit() {
 }
 
 std::string Dasher::getFixed() {
+	if(!current) {
+		return "";
+	}
+
+	// Traverse upward, collecting string.
 	std::string result;
-	std::shared_ptr<ProbNode> iter = current;
+	std::shared_ptr<ProbNode> iter = getProbableNode();
 	while(iter) {
 		result = iter->getString() + result;
 		iter = ProbNode::getParent(iter);
 	}
 	return result;
+}
+
+std::shared_ptr<ProbNode> Dasher::getProbableNode() {
+	assert(current);
+
+	// By the invariance, current always contains the center.
+	std::shared_ptr<ProbNode> node = current;
+	std::shared_ptr<ProbNode> prev_node = current;
+	float index = local_index;
+	float half_span = local_half_span;
+
+	while(half_span <= 1) {
+		float accum_p = 0;
+		for(auto& child : ProbNode::getChildren(node)) {
+			if(accum_p <= index && index < accum_p + child.first) {
+				index = (index - accum_p) / child.first;
+				half_span /= child.first;
+
+				prev_node = node;
+				node = child.second;
+				break;
+			}
+			accum_p += child.first;
+		}
+	}
+
+	return prev_node;
 }
 
 void Dasher::visualize(cairo_t* ctx) {

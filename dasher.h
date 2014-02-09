@@ -9,6 +9,7 @@
 
 #include <cairo/cairo.h>
 
+
 class EnglishModel {
 public:
 	EnglishModel(std::string w1_file);
@@ -22,6 +23,7 @@ private:
 	std::map<char, float> letter_table_any;  // contain alpha + " "
 	std::unordered_map<std::string, std::map<char, float>> word1_prefix_table;
 };
+
 
 class ProbNode {
 public:  // common interface
@@ -50,6 +52,8 @@ private:
 class Dasher {
 public:
 	Dasher();
+
+	// Get probable input.
 	std::string getFixed();
 
 	// rel_index, rel_zoom: [-1, 1]
@@ -57,11 +61,14 @@ public:
 
 	void visualize(cairo_t* ctx);
 private:
+	// Locate center. (when box aspect is 1:1, it means >= 50%
+	// given current position)
+	std::shared_ptr<ProbNode> getProbableNode();
+
 	// Adjust current (and clip values if needed) so that invariance will hold.
 	void fit();
 
 	std::tuple<double, double, double> getNodeColor(std::shared_ptr<ProbNode> node);
-
 	void drawNode(std::shared_ptr<ProbNode> node, cairo_t* ctx, float p0, float p1);
 public:
 	std::atomic<EnglishModel*> model;
