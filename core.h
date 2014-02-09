@@ -1,25 +1,17 @@
 #pragma once
 
-#include <array>
-#include <fstream>
-#include <functional>
-#include <iostream>
-#include <map>
 #include <memory>
 #include <string>
 #include <vector>
 
 #include <boost/optional.hpp>
 #include <cairo/cairo.h>
-#include <jsoncpp/json/json.h>
 #include <GL/glew.h>
 #include <GL/glfw3.h>
-#include <v8.h>
 
 #include "gl.h"
 #include "OVR.h"
 #include "scene.h"
-#include "ui.h"
 
 class Core {
 public:

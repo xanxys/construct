@@ -1,5 +1,16 @@
 #include "core.h"
 
+#include <array>
+#include <fstream>
+#include <functional>
+#include <iostream>
+#include <map>
+
+#include <jsoncpp/json/json.h>
+#include <v8.h>
+
+#include "ui.h"
+
 Core::Core(bool windowed) : native_script_counter(0) {
 	init(windowed ? DisplayMode::WINDOW : DisplayMode::HMD_FRAMELESS);
 	v8::V8::Initialize();
