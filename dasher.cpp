@@ -243,8 +243,6 @@ void Dasher::visualize(cairo_t* ctx) {
 
 	// draw in [-1,0] * [0,1]
 	if(current) {
-		std::cout << "prefix: " <<current->getWordPrefix() << std::endl;
-
 		drawNode(current, ctx, 0, 1);
 	}
 
@@ -268,20 +266,26 @@ void Dasher::drawNode(std::shared_ptr<ProbNode> node, cairo_t* ctx, float p0, fl
 		return;
 	}
 
-	std::cout << "drawNode" << dp << std::endl;
-
-	cairo_rectangle(ctx, -dp, p0, dp, dp);
-
+	// Draw box. Don't use cairo_stroke to avoid node overlap.
 	const auto color = getNodeColor(node);
+
+	// outer
+	cairo_new_path(ctx);
+	cairo_rectangle(ctx, -dp, p0, dp, dp);
+	cairo_set_source_rgb(ctx, 0.2, 0.2, 0.2);
+	cairo_fill(ctx);
+
+	// inner (left, top, bottom)
+	const float margin = dp * 0.01;
+	cairo_new_path(ctx);
+	cairo_rectangle(ctx,
+		-dp + margin, p0 + margin,
+		dp - margin, dp - margin * 2);
 	cairo_set_source_rgb(ctx,
 		std::get<0>(color), std::get<1>(color), std::get<2>(color));
-	cairo_fill_preserve(ctx);
+	cairo_fill(ctx);
 
-	cairo_set_line_width(ctx, 0.03 * dp);
-	cairo_set_source_rgb(ctx, 0.2, 0.2, 0.2);
-	cairo_stroke(ctx);
-
-
+	// Show text.
 	cairo_save(ctx);
 	cairo_set_source_rgb(ctx, 0, 0, 0);
 	cairo_translate(ctx, -dp, p0);
@@ -290,12 +294,13 @@ void Dasher::drawNode(std::shared_ptr<ProbNode> node, cairo_t* ctx, float p0, fl
 	cairo_show_text(ctx, node->getString().c_str());
 	cairo_restore(ctx);
 
+	// Draw children.
 	float accum_p = 0;
-	for(auto& child : ProbNode::getChildren(current)) {
-		assert(0 < child.first && child.first < 1);
+	for(auto& child : ProbNode::getChildren(node)) {
+		assert(0 < child.first && child.first <= 1);
+
 		drawNode(child.second, ctx,
 			p0 + dp * accum_p, p0 + dp * (accum_p + child.first));
 		accum_p += child.first;
 	}
-
 }
