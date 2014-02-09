@@ -33,6 +33,7 @@ public:  // common interface
 private:
 	ProbNode(std::shared_ptr<EnglishModel> model,
 		std::shared_ptr<ProbNode> parent, std::string str);
+public: // for debug
 	std::string getWordPrefix();
 private:
 	std::shared_ptr<EnglishModel> model;

@@ -94,7 +94,7 @@ EnglishModel::EnglishModel(std::string w1_file) :
 }
 
 const std::map<char, float> EnglishModel::nextCharGivenPrefix(std::string prefix) {
-	// TODO: smoothing so that all characters appears with non-zero probability.
+	// TODO: smooth so that all characters appears with non-zero probability.
 	auto char_distrib = word1_prefix_table.find(prefix);
 	if(char_distrib != word1_prefix_table.end()) {
 		return char_distrib->second;
@@ -167,7 +167,7 @@ void Dasher::update(float dt, float rel_index, float rel_zoom) {
 			return;
 		}
 	}
-	
+
 	const float speed = 1.0;
 	local_half_span = std::max(local_half_span / 2, local_half_span + dt * speed * rel_zoom);
 	local_index += dt * speed * (rel_index * local_half_span);
@@ -240,9 +240,7 @@ void Dasher::visualize(cairo_t* ctx) {
 	cairo_scale(ctx, 250, 250);
 
 	cairo_set_source_rgb(ctx, 1, 1, 1);
-	cairo_new_path(ctx);
-	cairo_rectangle(ctx, 0, 0, 1, 1);
-	cairo_fill(ctx);
+	cairo_paint(ctx);
 
 	cairo_translate(ctx, 1, 0);
 	cairo_scale(ctx, 1.0 / (2 * local_half_span), 1.0 / (2 * local_half_span));
@@ -250,6 +248,8 @@ void Dasher::visualize(cairo_t* ctx) {
 
 	// draw in [-1,0] * [0,1]
 	if(current) {
+		std::cout << "prefix: " <<current->getWordPrefix() << std::endl;
+
 		drawNode(current, ctx, 0, 1);
 	}
 
@@ -268,9 +268,12 @@ std::tuple<double, double, double> Dasher::getNodeColor(
 
 void Dasher::drawNode(std::shared_ptr<ProbNode> node, cairo_t* ctx, float p0, float p1) {
 	const float dp = p1 - p0;
+	assert(dp <= 1.0);
 	if(dp < 0.001) {
 		return;
 	}
+
+	std::cout << "drawNode" << dp << std::endl;
 
 	cairo_rectangle(ctx, -dp, p0, dp, dp);
 
@@ -294,6 +297,7 @@ void Dasher::drawNode(std::shared_ptr<ProbNode> node, cairo_t* ctx, float p0, fl
 
 	float accum_p = 0;
 	for(auto& child : ProbNode::getChildren(current)) {
+		assert(0 < child.first && child.first < 1);
 		drawNode(child.second, ctx,
 			p0 + dp * accum_p, p0 + dp * (accum_p + child.first));
 		accum_p += child.first;

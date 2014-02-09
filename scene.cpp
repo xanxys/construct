@@ -30,7 +30,7 @@ void NativeScript::step(float dt, Object& object) {
 
 
 
-Scene::Scene() {
+Scene::Scene() : new_id(0) {
 }
 
 ObjectId Scene::add() {
