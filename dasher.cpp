@@ -27,7 +27,7 @@ EnglishModel::EnglishModel(std::string w1_file) :
 		}
 
 		try {
-			freq_table[entry[0]] = std::stol(entry[1]);
+			freq_table[entry[0]] = std::stoull(entry[1]);
 			est_num_prefix += entry[0].size() + 1;
 		} catch(std::invalid_argument exc) {
 			// ignore
@@ -35,13 +35,13 @@ EnglishModel::EnglishModel(std::string w1_file) :
 	}
 
 	// Construct prefix table.
-	const int max_char_table_size = alphabet.size() + 1;
+	const uint64_t max_char_table_size = alphabet.size() + 1;
 
 	std::unordered_map<std::string, std::map<char, uint64_t>> prefix_table;
 	prefix_table.reserve(est_num_prefix);
 	for(const auto& word_freq : freq_table) {
 		const std::string& word = word_freq.first;
-		const int freq = word_freq.second;
+		const uint64_t freq = word_freq.second;
 
 		// Ignore empty word.
 		if(word.empty()) {
@@ -54,19 +54,11 @@ EnglishModel::EnglishModel(std::string w1_file) :
 			const char next = (i == word.size()) ? ' ' : word[i];
 
 			auto insertion = prefix_table.emplace(prefix,
-				std::map<char, uint64_t>({
-					{next, freq}
-				}));
+				std::map<char, uint64_t>());
 
-			if(!insertion.second) {
-				// Already exist (not inserted).
-				auto insertion_p = insertion.first->second.emplace(next, freq);
+			auto insertion_p = insertion.first->second.emplace(next, 0);
 
-				if(!insertion_p.second) {
-					// Already exists.
-					insertion_p.first->second += freq;
-				}
-			}
+			insertion_p.first->second += freq;
 		}
 	}
 	
@@ -80,9 +72,12 @@ EnglishModel::EnglishModel(std::string w1_file) :
 
 		std::map<char, float> ch_table;
 		for(auto& char_freq : prefix_e.second) {
+			assert(char_freq.second <= sum_char_freq);
+
 			ch_table[char_freq.first] = 
 				static_cast<float>(char_freq.second) / sum_char_freq;
 		}
+
 		word1_prefix_table[prefix_e.first] = ch_table;
 	}
 
