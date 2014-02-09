@@ -56,7 +56,12 @@ void Scene::render() {
 
 		if(object->use_blend) {
 			glEnable(GL_BLEND);
-			glBlendFunc(GL_SRC_ALPHA, GL_ONE);
+			
+			// additive blending
+			// glBlendFunc(GL_SRC_ALPHA, GL_ONE);
+
+			// alpha blend
+			glBlendFunc(GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA);
 		}
 
 		object->shader->use();
