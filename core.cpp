@@ -62,7 +62,10 @@ void Core::addInitialObjects() {
 		}
 	}
 
+	// Prepare avatar things
+	attachLocomotionRing(scene.unsafeGet(scene.add()));
 
+	// Prepare dasher things
 	attachTextQuadAt(scene.unsafeGet(scene.add()), "はろーわーるど", 0.1, 0, 1, 1.8);
 
 	ObjectId input_object = scene.add();
@@ -71,6 +74,21 @@ void Core::addInitialObjects() {
 	attachDasherQuadAt(scene.unsafeGet(scene.add()), input_object, 0.5, 0, 0.9, 1.4);
 
 	eye_position = OVR::Vector3f(0, 0, 1.4);
+}
+
+void Core::attachLocomotionRing(Object& object) {
+	GLfloat vertex_data[] = {
+		-0.45f, 0.25f, 0.1,
+		0.45f, 0.25f, 0.1,
+		0.45f,  0.45f, 0.1,
+
+		-0.45f, 0.25f, 0.1,
+		0.45f,  0.45f, 0.1,
+		-0.45f, 0.45f, 0.1,
+	};
+
+	object.shader = standard_shader;
+	object.geometry = Geometry::createPos(6, &vertex_data[0]);
 }
 
 void Core::attachDasherQuadAt(Object& object, ObjectId label, float height_meter, float dx, float dy, float dz) {

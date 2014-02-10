@@ -55,12 +55,15 @@ protected:
 	
 	void attachDasherQuadAt(Object& object, ObjectId label, float height, float dx, float dy, float dz);
 	void attachTextQuadAt(Object& object, std::string text, float height, float dx, float dy, float dz);
+	void attachLocomotionRing(Object& object);
 
 	std::shared_ptr<Texture> createTextureFromSurface(cairo_surface_t* surface);
 private:
 	// GL - Scene things.
 	Scene scene;
 
+	// TODO: dependency on these shaders prevents moving attach... methods
+	// to ui.cpp
 	std::shared_ptr<Shader> standard_shader;
 	std::shared_ptr<Shader> texture_shader;
 	std::shared_ptr<Shader> warp_shader;
