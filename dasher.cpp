@@ -9,7 +9,9 @@
 
 
 EnglishModel::EnglishModel(std::string w1_file) :
-	alphabet("abcdefghijklmnopqrstuvwxyz") {
+	alphabet("abcdefghijklmnopqrstuvwxyz"),
+	all_letters(alphabet + " .,:;!?") {
+
 	// Parse 1-word frequency table.
 	std::map<std::string, uint64_t> freq_table;
 
@@ -80,7 +82,7 @@ EnglishModel::EnglishModel(std::string w1_file) :
 
 		// Smooth distribution by giving additional 0.001 probability for all chars.
 		float sum_new_prob = 0;
-		for(char ch : alphabet + " ") {
+		for(char ch : all_letters) {
 			auto insertion = ch_table.emplace(ch, 0);
 			insertion.first->second += 0.001;
 			sum_new_prob += insertion.first->second;
@@ -95,17 +97,26 @@ EnglishModel::EnglishModel(std::string w1_file) :
 	}
 
 	// Create fall-back letter table.
-	for(char ch : alphabet + " ") {
-		letter_table_any[ch] =
-			(ch == 'e' ? 2.0 : 1.0) / (alphabet.size() + 1 + 1);
+	for(char ch : all_letters) {
+		letter_table_any.push_back(std::make_pair(
+			ch,
+			(ch == 'e' ? 2.0 : 1.0) / (all_letters.size() + 1)));
 	}
 }
 
-const std::map<char, float> EnglishModel::nextCharGivenPrefix(std::string prefix) {
+const std::vector<std::pair<char, float>> EnglishModel::nextCharGivenPrefix(std::string prefix) {
 	// TODO: smooth so that all characters appears with non-zero probability.
 	auto char_distrib = word1_prefix_table.find(prefix);
 	if(char_distrib != word1_prefix_table.end()) {
-		return char_distrib->second;
+		std::vector<std::pair<char, float>> pairs;
+		for(char ch : all_letters) {
+			auto it = char_distrib->second.find(ch);
+			if(it != char_distrib->second.end()) {
+				pairs.push_back(*it);
+			}
+		}
+		
+		return pairs;
 	} else {
 		return letter_table_any;
 	}

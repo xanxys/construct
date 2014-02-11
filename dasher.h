@@ -16,11 +16,12 @@ public:
 
 	// Result contains alphabet + space, sums up to 1.
 	// prefix can be "", full word, or in between.
-	const std::map<char, float> nextCharGivenPrefix(std::string str);
+	const std::vector<std::pair<char, float>> nextCharGivenPrefix(std::string str);
 private:
 	const std::string alphabet;
+	const std::string all_letters;
 
-	std::map<char, float> letter_table_any;  // contain alpha + " "
+	std::vector<std::pair<char, float>> letter_table_any;  // contain alpha + " "
 	std::unordered_map<std::string, std::map<char, float>> word1_prefix_table;
 };
 

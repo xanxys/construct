@@ -31,7 +31,7 @@ TEST_F(LangModelTest, ProbIsValid) {
 			EXPECT_GE(1, entry.second);
 			sum += entry.second;
 		}
-		EXPECT_FLOAT_EQ(1, sum);
+		EXPECT_NEAR(1, sum, 1e-5);
 	}
 }
 
@@ -52,7 +52,7 @@ TEST_F(LangModelTest, NodeProbIsValid) {
 			EXPECT_GE(1, child.first);
 			sum += child.first;
 		}
-		EXPECT_FLOAT_EQ(1, sum);
+		EXPECT_NEAR(1, sum, 1e-5);
 	}
 }
 
