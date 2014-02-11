@@ -4,4 +4,4 @@ compiler:
 script: scons construct
 before_install:
   - sudo apt-get update -qq
-  - sudo apt-get install -qq libv8 eigen3 glew glfw libXinerama
+  - sudo apt-get install -qq libv8-dev libeigen3-dev libglew-dev libglfw-dev libxinerama-dev
