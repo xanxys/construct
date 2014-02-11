@@ -1,4 +1,4 @@
-Construct
+Construct [![Build Status](https://travis-ci.org/xanxys/construct.png?branch=master)](https://travis-ci.org/xanxys/construct)
 ==========
 
 Core GUI
@@ -32,12 +32,6 @@ The code is licensed under FreeBSD.
 
 (Especially) LibOVR has different license; see LibOVR/LICENSE.txt
 
-dependency:
-
-* scons
-* clang++
-* libv8-3.14.5.10
-* OpenGL
-* GLEW
-* GLFW
-* libXinerama
+Dependency
+----------
+See .travis.yml file for (ubuntu) package names.
