@@ -63,6 +63,48 @@ EnglishModel::EnglishModel(std::string w1_file) :
 			insertion_p.first->second += freq;
 		}
 	}
+
+	// Punctuations.
+	for(auto& prefix_e : prefix_table) {
+		// Copy count from prefix -> " " to prefix -> "." etc.
+		auto it = prefix_e.second.find(' ');
+		if(it != prefix_e.second.end()) {
+			prefix_e.second['.'] = it->second / 4;
+			prefix_e.second[','] = it->second / 2;
+			prefix_e.second[':'] = it->second / 4;
+			prefix_e.second[';'] = it->second / 4;
+			prefix_e.second['!'] = it->second / 5;
+			prefix_e.second['?'] = it->second / 5;
+		}
+	}
+
+	prefix_table["."] = std::map<char, uint64_t>({
+		{' ', 10},
+		{'.', 1},
+	});
+
+	prefix_table[","] = std::map<char, uint64_t>({
+		{' ', 10},
+	});
+
+	prefix_table["!"] = std::map<char, uint64_t>({
+		{' ', 10},
+		{'!', 3},
+		{'?', 1},
+	});
+
+	prefix_table["?"] = std::map<char, uint64_t>({
+		{' ', 10},
+		{'?', 2}
+	});
+
+	prefix_table[":"] = std::map<char, uint64_t>({
+		{' ', 10},
+	});
+
+	prefix_table[";"] = std::map<char, uint64_t>({
+		{' ', 10},
+	});
 	
 	// Smooth & Normalize prefix table.
 	word1_prefix_table.reserve(est_num_prefix);
