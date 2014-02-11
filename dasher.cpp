@@ -80,11 +80,11 @@ EnglishModel::EnglishModel(std::string w1_file) :
 				static_cast<float>(char_freq.second) / sum_char_freq;
 		}
 
-		// Smooth distribution by giving additional 0.001 probability for all chars.
+		// Smooth distribution by giving additional 0.01 probability for all chars.
 		float sum_new_prob = 0;
 		for(char ch : all_letters) {
 			auto insertion = ch_table.emplace(ch, 0);
-			insertion.first->second += 0.001;
+			insertion.first->second += 0.01;
 			sum_new_prob += insertion.first->second;
 		}
 
@@ -102,6 +102,10 @@ EnglishModel::EnglishModel(std::string w1_file) :
 			ch,
 			(ch == 'e' ? 2.0 : 1.0) / (all_letters.size() + 1)));
 	}
+}
+
+const std::string EnglishModel::getPunctunation() {
+	return ".,:;!?";
 }
 
 const std::vector<std::pair<char, float>> EnglishModel::nextCharGivenPrefix(std::string prefix) {
@@ -131,9 +135,15 @@ std::shared_ptr<ProbNode> ProbNode::getParent(std::shared_ptr<ProbNode> node) {
 }
 
 std::string ProbNode::getWordPrefix() {
+	const std::string first = getString();
+	for(char ch : model->getPunctunation()) {
+		if(std::string(ch, 1) == first) {
+			return first;
+		}
+	}
+
 	std::string result;
 	ProbNode* iter = this;
-
 	while(iter && iter->getString() != " ") {
 		result = iter->getString() + result;
 		iter = iter->parent.get();
@@ -321,6 +331,15 @@ std::tuple<double, double, double> Dasher::getNodeColor(
 	}
 }
 
+std::string Dasher::getDisplayString(std::shared_ptr<ProbNode> node) {
+	const std::string input = node->getString();
+	if(input == " ") {
+		return "␣";
+	} else {
+		return input;
+	}
+}
+
 // TODO: node should have aspect > 1, because when a child of a node is
 // almost 0, there's no space for characters.
 void Dasher::drawNode(std::shared_ptr<ProbNode> node, cairo_t* ctx, float p0, float p1) {
@@ -350,14 +369,12 @@ void Dasher::drawNode(std::shared_ptr<ProbNode> node, cairo_t* ctx, float p0, fl
 	cairo_fill(ctx);
 
 	// Show text.
-	const std::string input_string = node->getString();
-	const std::string display_string = (input_string == " ") ? "␣" : input_string;
 	cairo_save(ctx);
 	cairo_set_source_rgb(ctx, 0, 0, 0);
 	cairo_translate(ctx, -dp, p0);
 	cairo_scale(ctx, dp * 0.1, dp * 0.1);
 	cairo_translate(ctx, 0, 5);
-	cairo_show_text(ctx, display_string.c_str());
+	cairo_show_text(ctx, getDisplayString(node).c_str());
 	cairo_restore(ctx);
 
 	// Draw children.

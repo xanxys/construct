@@ -17,6 +17,8 @@ public:
 	// Result contains alphabet + space, sums up to 1.
 	// prefix can be "", full word, or in between.
 	const std::vector<std::pair<char, float>> nextCharGivenPrefix(std::string str);
+
+	const std::string getPunctunation();
 private:
 	const std::string alphabet;
 	const std::string all_letters;
@@ -37,6 +39,8 @@ private:
 	ProbNode(std::shared_ptr<EnglishModel> model,
 		std::shared_ptr<ProbNode> parent, std::string str);
 public: // for debug
+	// Return (partial) word, "", ".", ...
+	// won't return " "
 	std::string getWordPrefix();
 private:
 	std::shared_ptr<EnglishModel> model;
@@ -71,6 +75,8 @@ private:
 	void fit();
 
 	std::tuple<double, double, double> getNodeColor(std::shared_ptr<ProbNode> node);
+	std::string getDisplayString(std::shared_ptr<ProbNode> node);
+	
 	void drawNode(std::shared_ptr<ProbNode> node, cairo_t* ctx, float p0, float p1);
 public:
 	std::atomic<EnglishModel*> model;
