@@ -135,6 +135,13 @@ std::shared_ptr<Geometry> Geometry::createPos(int n_vertex, const float* pos) {
 		pos));
 }
 
+std::shared_ptr<Geometry> Geometry::createPosColor(int n_vertex, const float* pos_col) {
+	return std::shared_ptr<Geometry>(new Geometry(
+		n_vertex,
+		std::vector<int>({3, 3}),
+		pos_col));
+}
+
 std::shared_ptr<Geometry> Geometry::createPosUV(int n_vertex, const float* pos_uv) {
 	return std::shared_ptr<Geometry>(new Geometry(
 		n_vertex,

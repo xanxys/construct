@@ -41,24 +41,24 @@ void Core::addInitialObjects() {
 	// Tiles
 	for(int i = -5; i <= 5; i++) {
 		for(int j = -5; j <= 5; j++) {
-			GLfloat g_vertex_buffer_data[] = {
-				-0.45f, -0.45f, 0,
-				0.45f, -0.45f, 0,
-				0.45f,  0.45f, 0,
+			GLfloat vertex_data[] = {
+				-0.45f, -0.45f, 0, 0.9, 0.9, 0.9,
+				0.45f, -0.45f, 0, 0.9, 0.9, 0.9,
+				0.45f,  0.45f, 0, 0.9, 0.9, 0.9,
 
-				-0.45f, -0.45f, 0,
-				0.45f,  0.45f, 0,
-				-0.45f, 0.45f, 0,
+				-0.45f, -0.45f, 0, 0.9, 0.9, 0.9,
+				0.45f,  0.45f, 0, 0.9, 0.9, 0.9,
+				-0.45f, 0.45f, 0, 0.9, 0.9, 0.9,
 			};
 
 			for(int k = 0; k < 6; k++) {
-				g_vertex_buffer_data[k * 3 + 0] += i;
-				g_vertex_buffer_data[k * 3 + 1] += j;
+				vertex_data[k * 6 + 0] += i;
+				vertex_data[k * 6 + 1] += j;
 			}
 
 		 	auto& obj = scene.unsafeGet(scene.add());
 			obj.shader = standard_shader;
-			obj.geometry = Geometry::createPos(6, &g_vertex_buffer_data[0]);
+			obj.geometry = Geometry::createPosColor(6, &vertex_data[0]);
 		}
 	}
 
@@ -78,17 +78,17 @@ void Core::addInitialObjects() {
 
 void Core::attachLocomotionRing(Object& object) {
 	GLfloat vertex_data[] = {
-		-0.45f, 0.25f, 0.1,
-		0.45f, 0.25f, 0.1,
-		0.45f,  0.45f, 0.1,
+		-0.45f, 0.25f, 0.1, 0.5, 0.5, 0.8,
+		0.45f, 0.25f, 0.1, 0.5, 0.5, 0.8,
+		0.45f,  0.45f, 0.1, 0.5, 0.5, 0.8,
 
-		-0.45f, 0.25f, 0.1,
-		0.45f,  0.45f, 0.1,
-		-0.45f, 0.45f, 0.1,
+		-0.45f, 0.25f, 0.1, 0.5, 0.5, 0.8,
+		0.45f,  0.45f, 0.1, 0.5, 0.5, 0.8,
+		-0.45f, 0.45f, 0.1, 0.5, 0.5, 0.8,
 	};
 
 	object.shader = standard_shader;
-	object.geometry = Geometry::createPos(6, &vertex_data[0]);
+	object.geometry = Geometry::createPosColor(6, &vertex_data[0]);
 }
 
 void Core::attachDasherQuadAt(Object& object, ObjectId label, float height_meter, float dx, float dy, float dz) {

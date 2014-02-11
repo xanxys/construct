@@ -52,6 +52,7 @@ private:
 class Geometry {
 public:
 	static std::shared_ptr<Geometry> createPos(int n_vertex, const float* pos);
+	static std::shared_ptr<Geometry> createPosColor(int n_vertex, const float* pos_col);
 	static std::shared_ptr<Geometry> createPosUV(int n_vertex, const float* pos_uv);
 	~Geometry();
 
