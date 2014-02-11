@@ -8,7 +8,7 @@
 #include <thread>
 
 
-EnglishModel::EnglishModel(std::string w1_file) :
+EnglishModel::EnglishModel(std::string w1_file, int limit) :
 	alphabet("abcdefghijklmnopqrstuvwxyz"),
 	all_letters(alphabet + " .,:;!?") {
 
@@ -16,8 +16,9 @@ EnglishModel::EnglishModel(std::string w1_file) :
 	std::map<std::string, uint64_t> freq_table;
 
 	int est_num_prefix = 0;
+	int count = 0;
 	std::ifstream fs(w1_file);
-	while(!fs.eof()) {
+	while(!fs.eof() && count < limit) {
 		std::string line;
 		std::getline(fs, line);
 
@@ -31,6 +32,7 @@ EnglishModel::EnglishModel(std::string w1_file) :
 		try {
 			freq_table[entry[0]] = std::stoull(entry[1]);
 			est_num_prefix += entry[0].size() + 1;
+			count++;
 		} catch(std::invalid_argument exc) {
 			// ignore
 		}

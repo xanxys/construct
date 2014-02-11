@@ -8,7 +8,7 @@
 class LangModelTest : public ::testing::Test {
 protected:
 	virtual void SetUp() override {
-		model.reset(new EnglishModel("count_1w.txt"));
+		model.reset(new EnglishModel("count_1w.txt", 5000));
 	}
 
 	std::shared_ptr<EnglishModel> model;

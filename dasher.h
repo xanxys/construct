@@ -12,7 +12,8 @@
 
 class EnglishModel {
 public:
-	EnglishModel(std::string w1_file);
+	// limit: take first limit lines (mainly for speeding up unittest)
+	EnglishModel(std::string w1_file, int limit = 1000000);
 
 	// Result contains alphabet + space, sums up to 1.
 	// prefix can be "", full word, or in between.
