@@ -66,10 +66,10 @@ void Core::addInitialObjects() {
 	attachLocomotionRing(scene.unsafeGet(scene.add()));
 
 	// Prepare dasher things
-	attachTextQuadAt(scene.unsafeGet(scene.add()), "Input", 0.1, 0, 1, 1.8);
+	attachTextQuadAt(scene.unsafeGet(scene.add()), "Input    ", 0.1, 0, 1, 1.8);
 
 	ObjectId input_object = scene.add();
-	attachTextQuadAt(scene.unsafeGet(input_object), "--------------", 0.15, 0, 1, 1.0);	
+	attachTextQuadAt(scene.unsafeGet(input_object), "------------------------", 0.12, 0, 1, 1.0);	
 
 	attachDasherQuadAt(scene.unsafeGet(scene.add()), input_object, 0.5, 0, 0.9, 1.4);
 

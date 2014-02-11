@@ -382,16 +382,15 @@ std::string Dasher::getDisplayString(std::shared_ptr<ProbNode> node) {
 	}
 }
 
-// TODO: node should have aspect > 1, because when a child of a node is
-// almost 0, there's no space for characters.
+// TODO: When a child of a node is almost 0, there's no space for characters.
 void Dasher::drawNode(std::shared_ptr<ProbNode> node, cairo_t* ctx, float p0, float p1) {
 	const float dp = p1 - p0;
 	assert(dp <= 1.0);
-	if(dp < 0.001) {
+	if(dp / (2 * local_half_span) < 0.01) {
 		return;
 	}
 
-	// Draw box. Don't use cairo_stroke to avoid node overlap.
+	// Draw box. Don't use cairo_stroke, to avoid node overlap.
 	const auto color = getNodeColor(node);
 
 	// outer
@@ -420,12 +419,14 @@ void Dasher::drawNode(std::shared_ptr<ProbNode> node, cairo_t* ctx, float p0, fl
 	cairo_restore(ctx);
 
 	// Draw children.
-	float accum_p = 0;
-	for(auto& child : ProbNode::getChildren(node)) {
-		assert(0 < child.first && child.first <= 1);
+	if(dp / (2 * local_half_span) >= 0.1) {
+		float accum_p = 0;
+		for(auto& child : ProbNode::getChildren(node)) {
+			assert(0 < child.first && child.first <= 1);
 
-		drawNode(child.second, ctx,
-			p0 + dp * accum_p, p0 + dp * (accum_p + child.first));
-		accum_p += child.first;
+			drawNode(child.second, ctx,
+				p0 + dp * accum_p, p0 + dp * (accum_p + child.first));
+			accum_p += child.first;
+		}
 	}
 }
