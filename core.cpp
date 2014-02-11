@@ -62,6 +62,17 @@ void Core::addInitialObjects() {
 		}
 	}
 
+	// Prepare building things
+	// Architectural concept: modernized middle-age
+	// (lots of symmetry, few colors, geometric shapes, semi-open)
+
+	for(int i = 0; i < 10; i++) {
+		attachCuboid(scene.unsafeGet(scene.add()),
+			Eigen::Vector3f(1, 0.2, 0.2),
+			Eigen::Vector3f(1.5, 1.5 + 0.2 * i, 0.1 + 0.2 * i));
+	}
+	
+
 	// Prepare avatar things
 	attachLocomotionRing(scene.unsafeGet(scene.add()));
 
@@ -74,6 +85,44 @@ void Core::addInitialObjects() {
 	attachDasherQuadAt(scene.unsafeGet(scene.add()), input_object, 0.5, 0, 0.9, 1.4);
 
 	eye_position = OVR::Vector3f(0, 0, 1.4);
+}
+
+void Core::attachCuboid(Object& object, Eigen::Vector3f size, Eigen::Vector3f pos) {
+	Eigen::Matrix<float, 6 * 6, 6, Eigen::RowMajor> vertex;
+	for(int i = 0; i < 3; i++) {
+		Eigen::Vector3f d(0, 0, 0);
+		Eigen::Vector3f e0(0, 0, 0);
+		Eigen::Vector3f e1(0, 0, 0);
+
+		d[i] = 0.5;
+		e0[(i + 1) % 3] = 0.5;
+		e1[(i + 2) % 3] = 0.5;
+
+		for(int side = 0; side < 2; side++) {
+			const int face_offset = 6 * (i * 2 + side);
+
+			vertex.row(face_offset + 0).head(3) = d - e0 - e1;
+			vertex.row(face_offset + 1).head(3) = d + e0 - e1;
+			vertex.row(face_offset + 2).head(3) = d - e0 + e1;
+
+			vertex.row(face_offset + 3).head(3) = d + e0 + e1;
+			vertex.row(face_offset + 4).head(3) = d - e0 + e1;
+			vertex.row(face_offset + 5).head(3) = d + e0 - e1;
+
+			d *= -1;
+			e0 *= -1;
+		}
+	}
+
+	Eigen::Vector3f color(0.9, 0.8, 0.8);
+	for(int i = 0; i < 36; i++) {
+		Eigen::Vector3f pre_v = vertex.row(i).head(3);
+		vertex.row(i).head(3) = pre_v.cwiseProduct(size) + pos;
+		vertex.row(i).tail(3) = color;
+	}
+
+	object.shader = standard_shader;
+	object.geometry = Geometry::createPosColor(6 * 6, vertex.data());
 }
 
 void Core::attachLocomotionRing(Object& object) {

@@ -6,6 +6,7 @@
 
 #include <boost/optional.hpp>
 #include <cairo/cairo.h>
+#include <eigen3/Eigen/Dense>
 #include <GL/glew.h>
 #include <GL/glfw3.h>
 
@@ -56,6 +57,8 @@ protected:
 	void attachDasherQuadAt(Object& object, ObjectId label, float height, float dx, float dy, float dz);
 	void attachTextQuadAt(Object& object, std::string text, float height, float dx, float dy, float dz);
 	void attachLocomotionRing(Object& object);
+
+	void attachCuboid(Object& object, Eigen::Vector3f size, Eigen::Vector3f pos);
 
 	std::shared_ptr<Texture> createTextureFromSurface(cairo_surface_t* surface);
 private:
