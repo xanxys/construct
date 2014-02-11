@@ -1,0 +1,7 @@
+language: cpp
+compiler:
+  - clang
+script: scons construct
+before_install:
+  - sudo apt-get update -qq
+  - sudo apt-get install -qq libv8 eigen3 glew glfw libXinerama
