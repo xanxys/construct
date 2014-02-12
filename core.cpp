@@ -61,35 +61,30 @@ void Core::addBuilding() {
 	std::mt19937 random;
 
 	// Tiles
-	for(int i = -8; i <= 8; i++) {
-		for(int j = -8; j <= 8; j++) {
-			GLfloat vertex_data[] = {
-				-0.45f, -0.45f, 0, 0.9, 0.9, 0.9,
-				0.45f, -0.45f, 0, 0.9, 0.9, 0.9,
-				0.45f,  0.45f, 0, 0.9, 0.9, 0.9,
+	for(int z = 0; z < 2; z++) {
+		for(int i = -8; i <= 8; i++) {
+			for(int j = -8; j <= 8; j++) {
+				const bool parity = (i + j + 10000) % 2 == 0;
+				const float refl = parity ?
+					std::normal_distribution<float>(0.9, 0.01)(random) :
+					std::normal_distribution<float>(0.8, 0.01)(random);
 
-				-0.45f, -0.45f, 0, 0.9, 0.9, 0.9,
-				0.45f,  0.45f, 0, 0.9, 0.9, 0.9,
-				-0.45f, 0.45f, 0, 0.9, 0.9, 0.9,
-			};
-
-			for(int k = 0; k < 6; k++) {
-				vertex_data[k * 6 + 0] += i;
-				vertex_data[k * 6 + 1] += j;
+				attachCuboid(scene.unsafeGet(scene.add()),
+					Eigen::Vector3f(0.45, 0.45, 0.04),
+					Eigen::Vector3f(i * 0.5, j * 0.5, -0.02 + z * 4),
+					Eigen::Vector3f(refl, refl, refl));
 			}
-
-			const float refl = std::normal_distribution<float>(0.9, 0.01)(random);
-
-			attachCuboid(scene.unsafeGet(scene.add()),
-				Eigen::Vector3f(0.9, 0.9, 0.04),
-				Eigen::Vector3f(i, j, -0.02),
-				Eigen::Vector3f(refl, refl, refl));
 		}
+
+		attachCuboid(scene.unsafeGet(scene.add()),
+			Eigen::Vector3f(8, 8, 0.04),
+			Eigen::Vector3f(0, 0, -0.06 + z * 4),
+			Eigen::Vector3f(0.8, 0.8, 0.8));
 	}
 
 	// pillars
-	for(int dx = -2; dx < 2; dx++) {
-		for(int dy = -2; dy < 2; dy++) {
+	for(int dx = -1; dx < 1; dx++) {
+		for(int dy = -1; dy < 1; dy++) {
 			const float spacing = 5;
 			const float height = 4;
 
@@ -120,11 +115,17 @@ void Core::addBuilding() {
 
 	
 	// stairs
-	for(int i = 0; i < 10; i++) {
+	for(int i = 0; i < 40; i++) {
 		attachCuboid(scene.unsafeGet(scene.add()),
 			Eigen::Vector3f(1, 0.2, 0.2),
 			Eigen::Vector3f(1.5, 1.5 + 0.2 * i, 0.1 + 0.2 * i));
 	}
+
+	// add elevator
+	attachCuboid(scene.unsafeGet(scene.add()),
+			Eigen::Vector3f(1.8, 1.8, 8),
+			Eigen::Vector3f(0, -4, 0),
+			Eigen::Vector3f(0.5, 0.5, 0.5));
 	
 }
 
@@ -581,7 +582,8 @@ void Core::render() {
 		useBackBuffer();
 	}
 	glClearColor(0.05, 0, 0.3, 1);
-	glClear(GL_COLOR_BUFFER_BIT);
+	glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
+	glEnable(GL_DEPTH_TEST);
 
 	auto projections = calcHMDProjection(1 / scale);
 	const int width = use_distortion ? buffer_width : screen_width;
@@ -606,6 +608,8 @@ void Core::render() {
 	// Apply warp shader (framebuffer -> back buffer)
 	if(use_distortion) {
 		pre_buffer->useIn(0);
+
+		glDisable(GL_DEPTH_TEST);
 
 		useBackBuffer();
 		warp_shader->use();
