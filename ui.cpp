@@ -4,8 +4,10 @@
 
 DasherScript::DasherScript(
 	std::function<OVR::Vector3f()> getHeadDirection,
-	cairo_surface_t* surface, ObjectId label) :
-	getHeadDirection(getHeadDirection), dasher_surface(surface), label(label) {
+	cairo_surface_t* surface, ObjectId label, ObjectId element) :
+	getHeadDirection(getHeadDirection), dasher_surface(surface),
+	label(label), element(element),
+	disabled(false) {
 }
 
 DasherScript::~DasherScript() {
@@ -13,7 +15,17 @@ DasherScript::~DasherScript() {
 }
 
 void DasherScript::step(float dt, Object& object) {
+	if(disabled) {
+		return;
+	}
+
 	auto dir = getHeadDirection();
+	if(std::abs(dir.x) > 0.6 || std::abs(dir.z) > 0.6) {
+		object.scene.deleteObject(element);
+		disabled = true;
+		return;
+	}
+
 
 	dasher.update(1.0 / 60, -dir.z * 10, -dir.x * 10);
 

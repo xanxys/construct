@@ -56,7 +56,7 @@ protected:
 
 	void printDisplays();
 	
-	void attachDasherQuadAt(Object& object, ObjectId label, float height, float dx, float dy, float dz);
+	void attachDasherQuadAt(ObjectId widget, ObjectId label, float height, float dx, float dy, float dz);
 	void attachTextQuadAt(Object& object, std::string text, float height, float dx, float dy, float dz);
 	void attachLocomotionRing(Object& object);
 
@@ -74,8 +74,6 @@ private:
 	std::shared_ptr<Shader> warp_shader;
 
 	OVR::Vector3f eye_position;
-
-	int native_script_counter;
 
 	// OVR-GL things.
 	GLuint FramebufferName;

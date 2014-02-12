@@ -59,10 +59,16 @@ public:
 	ObjectId add();
 	Object& unsafeGet(ObjectId);
 
+	void step();
 	void render();
+	
+	void sendMessage(ObjectId destination, Json::Value value);
+	void deleteObject(ObjectId target);
+private:
 	std::map<ObjectId, std::unique_ptr<Object>> objects;
 
-	void sendMessage(ObjectId destination, Json::Value value);
-private:
+	std::vector<ObjectId> deletion;
 	ObjectId new_id;
+
+	int native_script_counter;
 };

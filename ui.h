@@ -24,13 +24,16 @@ class DasherScript : public NativeScript {
 public:
 	DasherScript(
 		std::function<OVR::Vector3f()> getHeadDirection,
-		cairo_surface_t* surface, ObjectId label);
+		cairo_surface_t* surface, ObjectId label, ObjectId element);
 	~DasherScript();
 
 	void step(float dt, Object& object) override;
 private:
 	Dasher dasher;
 	ObjectId label;
+
+	bool disabled;
+	ObjectId element;
 
 	// TODO: unsafe reference to Core. Remove.
 	std::function<OVR::Vector3f()> getHeadDirection;

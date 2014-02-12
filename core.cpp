@@ -12,7 +12,7 @@
 
 #include "ui.h"
 
-Core::Core(bool windowed) : native_script_counter(0) {
+Core::Core(bool windowed) {
 	init(windowed ? DisplayMode::WINDOW : DisplayMode::HMD_FRAMELESS);
 	v8::V8::Initialize();
 
@@ -50,7 +50,7 @@ void Core::addInitialObjects() {
 	ObjectId input_object = scene.add();
 	attachTextQuadAt(scene.unsafeGet(input_object), "------------------------", 0.12, 0, 1, 1.0);	
 
-	attachDasherQuadAt(scene.unsafeGet(scene.add()), input_object, 0.5, 0, 0.9, 1.4);
+	attachDasherQuadAt(scene.add(), input_object, 0.5, 0, 0.9, 1.4);
 
 	eye_position = OVR::Vector3f(0, 0, 1.4);
 }
@@ -79,7 +79,7 @@ void Core::addBuilding() {
 			}
 
 			const float refl = std::normal_distribution<float>(0.9, 0.01)(random);
-			
+
 			attachCuboid(scene.unsafeGet(scene.add()),
 				Eigen::Vector3f(0.9, 0.9, 0.04),
 				Eigen::Vector3f(i, j, -0.02),
@@ -182,7 +182,9 @@ void Core::attachLocomotionRing(Object& object) {
 	object.geometry = Geometry::createPosColor(6, &vertex_data[0]);
 }
 
-void Core::attachDasherQuadAt(Object& object, ObjectId label, float height_meter, float dx, float dy, float dz) {
+void Core::attachDasherQuadAt(ObjectId widget, ObjectId label, float height_meter, float dx, float dy, float dz) {
+	Object& object = scene.unsafeGet(widget);
+
 	const float aspect_estimate = 1.0;
 	const float px_per_meter = 500;
 
@@ -220,7 +222,10 @@ void Core::attachDasherQuadAt(Object& object, ObjectId label, float height_meter
 	object.texture = texture;
 	object.use_blend = true;
 	object.nscript.reset(new DasherScript(
-		std::bind(std::mem_fn(&Core::getHeadDirection), this), dasher_surface, label));
+		std::bind(std::mem_fn(&Core::getHeadDirection), this),
+		dasher_surface,
+		label,
+		widget));
 }
 
 void Core::attachTextQuadAt(Object& object, std::string text, float height_meter, float dx, float dy, float dz) {
@@ -538,17 +543,7 @@ void Core::init(DisplayMode mode) {
 }
 
 void Core::step() {
-	// Native Script expects 30fps
-	// Running at 60fps
-	// -> load balance with modulo 2 of ObjectId
-	for(auto& object : scene.objects) {
-		if(object.second->nscript) {
-			if(object.first % 2 == native_script_counter) {
-				object.second->nscript->step(1.0 / 30, *object.second.get());
-			}
-		}
-	}
-	native_script_counter = (native_script_counter + 1) % 2;
+	scene.step();
 }
 
 void Core::render() {

@@ -30,7 +30,7 @@ void NativeScript::step(float dt, Object& object) {
 
 
 
-Scene::Scene() : new_id(0) {
+Scene::Scene() : new_id(0), native_script_counter(0) {
 }
 
 ObjectId Scene::add() {
@@ -48,6 +48,29 @@ void Scene::sendMessage(ObjectId destination, Json::Value value) {
 	if(it != objects.end()) {
 		it->second->addMessage(value);
 	}
+}
+
+void Scene::deleteObject(ObjectId target) {
+	deletion.push_back(target);
+}
+
+void Scene::step() {
+	// Native Script expects 30fps
+	// Running at 60fps
+	// -> load balance with modulo 2 of ObjectId
+	for(auto& object : objects) {
+		if(object.second->nscript) {
+			if(object.first % 2 == native_script_counter) {
+				object.second->nscript->step(1.0 / 30, *object.second.get());
+			}
+		}
+	}
+	native_script_counter = (native_script_counter + 1) % 2;
+
+	for(ObjectId target : deletion) {
+		objects.erase(target);
+	}
+	deletion.clear();
 }
 
 void Scene::render() {
