@@ -237,23 +237,9 @@ void Core::attachDasherQuadAt(ObjectId widget, ObjectId label, float height_mete
 	auto texture = createTextureFromSurface(dasher_surface);
 
 	// Create geometry with texture.
-	GLfloat vertex_pos_uv[] = {
-		-1.0f, 0, -1.0f, 0, 1,
-		-1.0f, 0, 1.0f, 0, 0,
-		 1.0f, 0, 1.0f, 1, 0,
-
-		-1.0f, 0, -1.0f, 0, 1,
-		 1.0f, 0, 1.0f, 1, 0,
-		 1.0f, 0, -1.0f, 1, 1,
-	};
-	for(int i = 0; i < 6; i++) {
-		vertex_pos_uv[5 * i + 0] = dx + vertex_pos_uv[5 * i + 0] * 0.5 * width_meter;
-		vertex_pos_uv[5 * i + 1] = dy;
-		vertex_pos_uv[5 * i + 2] = dz + vertex_pos_uv[5 * i + 2] * 0.5 * height_meter;
-	}
-
 	object.shader = texture_shader;
-	object.geometry = Geometry::createPosUV(6, vertex_pos_uv);
+	object.geometry = generateTexQuadGeometry(width_meter, height_meter,
+		Eigen::Vector3f(dx, dy, dz), Eigen::Matrix3f::Identity());
 	object.texture = texture;
 	object.use_blend = true;
 	object.nscript.reset(new DasherScript(
@@ -288,26 +274,9 @@ void Core::attachTextQuadAt(Object& object, std::string text, float height_meter
 	cairo_destroy(c_context);
 	auto texture = createTextureFromSurface(surf);
 
-	std::cout << "ISize:" << width_px << " * " << height_px << std::endl;
-
-	// Create geometry with texture.
-	GLfloat vertex_pos_uv[] = {
-		-1.0f, 0, -1.0f, 0, 1,
-		-1.0f, 0, 1.0f, 0, 0,
-		 1.0f, 0, 1.0f, 1, 0,
-
-		-1.0f, 0, -1.0f, 0, 1,
-		 1.0f, 0, 1.0f, 1, 0,
-		 1.0f, 0, -1.0f, 1, 1,
-	};
-	for(int i = 0; i < 6; i++) {
-		vertex_pos_uv[5 * i + 0] = dx + vertex_pos_uv[5 * i + 0] * 0.5 * width_meter;
-		vertex_pos_uv[5 * i + 1] = dy;
-		vertex_pos_uv[5 * i + 2] = dz + vertex_pos_uv[5 * i + 2] * 0.5 * height_meter;
-	}
-
 	object.shader = texture_shader;
-	object.geometry = Geometry::createPosUV(6, vertex_pos_uv);
+	object.geometry = generateTexQuadGeometry(width_meter, height_meter,
+		Eigen::Vector3f(dx, dy, dz), Eigen::Matrix3f::Identity());
 	object.texture = texture;
 	object.use_blend = true;
 	object.nscript.reset(new TextLabelScript(surf));
