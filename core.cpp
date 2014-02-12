@@ -7,7 +7,7 @@
 #include <map>
 #include <random>
 
-#include <jsoncpp/json/json.h>
+#include <json/json.h>
 #include <v8.h>
 
 #include "ui.h"

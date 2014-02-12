@@ -31,6 +31,8 @@ LIBS = [
 	'libXinerama',
 	]
 
+env.ParseConfig('pkg-config --cflags jsoncpp')
+
 # main code
 env.Program(
 	'construct',

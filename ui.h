@@ -11,7 +11,7 @@
 
 #include <boost/optional.hpp>
 #include <cairo/cairo.h>
-#include <jsoncpp/json/json.h>
+#include <json/json.h>
 #include <GL/glew.h>
 #include <glfw3.h>
 
