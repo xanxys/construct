@@ -60,7 +60,7 @@ protected:
 	void attachTextQuadAt(Object& object, std::string text, float height, float dx, float dy, float dz);
 	void attachLocomotionRing(Object& object);
 
-	void attachCuboid(Object& object, Eigen::Vector3f size, Eigen::Vector3f pos);
+	void attachCuboid(Object& object, Eigen::Vector3f size, Eigen::Vector3f pos, Eigen::Vector3f color = {0.9, 0.8, 0.8});
 
 	std::shared_ptr<Texture> createTextureFromSurface(cairo_surface_t* surface);
 private:

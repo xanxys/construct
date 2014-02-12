@@ -58,6 +58,8 @@ void Core::addInitialObjects() {
 // Architectural concept: modernized middle-age
 // (lots of symmetry, few colors, geometric shapes, semi-open)
 void Core::addBuilding() {
+	std::mt19937 random;
+
 	// Tiles
 	for(int i = -8; i <= 8; i++) {
 		for(int j = -8; j <= 8; j++) {
@@ -76,9 +78,12 @@ void Core::addBuilding() {
 				vertex_data[k * 6 + 1] += j;
 			}
 
-		 	auto& obj = scene.unsafeGet(scene.add());
-			obj.shader = standard_shader;
-			obj.geometry = Geometry::createPosColor(6, &vertex_data[0]);
+			const float refl = std::normal_distribution<float>(0.9, 0.01)(random);
+			
+			attachCuboid(scene.unsafeGet(scene.add()),
+				Eigen::Vector3f(0.9, 0.9, 0.04),
+				Eigen::Vector3f(i, j, -0.02),
+				Eigen::Vector3f(refl, refl, refl));
 		}
 	}
 
@@ -90,12 +95,12 @@ void Core::addBuilding() {
 
 			attachCuboid(scene.unsafeGet(scene.add()),
 				Eigen::Vector3f(0.5, 0.5, height),
-				Eigen::Vector3f((dx + 0.5) * spacing, (dy + 0.5) * spacing, height / 2));
+				Eigen::Vector3f((dx + 0.5) * spacing, (dy + 0.5) * spacing, height / 2),
+				Eigen::Vector3f(0.7, 0.7, 0.7));
 		}
 	}
 
 	// Generate chairs
-	std::mt19937 random;
 	for(int i = 0; i < 8; i++) {
 		const float height = std::normal_distribution<float>(0.45, 0.1)(random);
 
@@ -123,7 +128,9 @@ void Core::addBuilding() {
 	
 }
 
-void Core::attachCuboid(Object& object, Eigen::Vector3f size, Eigen::Vector3f pos) {
+void Core::attachCuboid(Object& object,
+	Eigen::Vector3f size, Eigen::Vector3f pos, Eigen::Vector3f color) {
+
 	Eigen::Matrix<float, 6 * 6, 6, Eigen::RowMajor> vertex;
 	for(int i = 0; i < 3; i++) {
 		Eigen::Vector3f d(0, 0, 0);
@@ -150,7 +157,6 @@ void Core::attachCuboid(Object& object, Eigen::Vector3f size, Eigen::Vector3f po
 		}
 	}
 
-	Eigen::Vector3f color(0.9, 0.8, 0.8);
 	for(int i = 0; i < 36; i++) {
 		Eigen::Vector3f pre_v = vertex.row(i).head(3);
 		vertex.row(i).head(3) = pre_v.cwiseProduct(size) + pos;
