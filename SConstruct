@@ -22,8 +22,6 @@ LIBS = [
 	'libdl',
 	'libGL',
 	'libGLEW',
-	'libglfw',
-	'libjsoncpp',
 	'libovr',
 	'libudev',
 	'libv8',
@@ -31,19 +29,21 @@ LIBS = [
 	'libXinerama',
 	]
 
-env.ParseConfig('pkg-config --cflags jsoncpp')
+env.ParseConfig('pkg-config --cflags --libs glfw3')
+env.ParseConfig('pkg-config --cflags --libs jsoncpp')
 
 # main code
 env.Program(
 	'construct',
 	source = [env.Object(f) for f in env.Glob('*.cpp') if not f.name.endswith('_test.cpp')],
-	LIBS = LIBS)
+	LIBS = LIBS + env['LIBS'])
 
 # test code
 program_test = env.Program(
 	'construct_test',
 	source = [env.Object(f) for f in env.Glob('*.cpp') if f.name != 'main.cpp'],
-	LIBS = LIBS + ['libgtest', 'libgtest_main'])
+	LIBS = LIBS + ['libgtest', 'libgtest_main'] + env['LIBS'])
+
 
 
 env.Command('test', None, './' + program_test[0].path)
