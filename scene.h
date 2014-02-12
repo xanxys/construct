@@ -10,7 +10,7 @@
 #include <boost/optional.hpp>
 #include <jsoncpp/json/json.h>
 #include <GL/glew.h>
-#include <GL/glfw3.h>
+#include <glfw3.h>
 
 #include "gl.h"
 #include "OVR.h"

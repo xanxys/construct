@@ -6,6 +6,8 @@ env = Environment(
 	CCFLAGS = ['-O3'],
 	CPPPATH = [
 		'LibOVR/Include',
+		'/usr/include/GL',  # GLFW in fedora
+		'/usr/include/GLFW',  # GLFW in ubuntu
 	],
 	LIBPATH = [
 		'LibOVR/Lib/Linux/Release/x86_64',

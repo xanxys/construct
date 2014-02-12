@@ -13,7 +13,7 @@
 #include <cairo/cairo.h>
 #include <jsoncpp/json/json.h>
 #include <GL/glew.h>
-#include <GL/glfw3.h>
+#include <glfw3.h>
 
 #include "dasher.h"
 #include "gl.h"

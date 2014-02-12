@@ -8,7 +8,7 @@
 #include <cairo/cairo.h>
 #include <eigen3/Eigen/Dense>
 #include <GL/glew.h>
-#include <GL/glfw3.h>
+#include <glfw3.h>
 
 #include "gl.h"
 #include "OVR.h"
