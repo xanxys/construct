@@ -38,6 +38,8 @@ protected:
 	void init(DisplayMode mode);
 	void addInitialObjects();
 
+	void addBuilding();
+
 	// Process aspects.
 	void step();
 

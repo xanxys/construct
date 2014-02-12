@@ -5,6 +5,7 @@
 #include <functional>
 #include <iostream>
 #include <map>
+#include <random>
 
 #include <jsoncpp/json/json.h>
 #include <v8.h>
@@ -38,9 +39,28 @@ Core::Core(bool windowed) : native_script_counter(0) {
 }
 
 void Core::addInitialObjects() {
+	addBuilding();
+
+	// Prepare avatar things
+	attachLocomotionRing(scene.unsafeGet(scene.add()));
+
+	// Prepare dasher things
+	attachTextQuadAt(scene.unsafeGet(scene.add()), "Input    ", 0.1, 0, 1, 1.8);
+
+	ObjectId input_object = scene.add();
+	attachTextQuadAt(scene.unsafeGet(input_object), "------------------------", 0.12, 0, 1, 1.0);	
+
+	attachDasherQuadAt(scene.unsafeGet(scene.add()), input_object, 0.5, 0, 0.9, 1.4);
+
+	eye_position = OVR::Vector3f(0, 0, 1.4);
+}
+
+// Architectural concept: modernized middle-age
+// (lots of symmetry, few colors, geometric shapes, semi-open)
+void Core::addBuilding() {
 	// Tiles
-	for(int i = -5; i <= 5; i++) {
-		for(int j = -5; j <= 5; j++) {
+	for(int i = -8; i <= 8; i++) {
+		for(int j = -8; j <= 8; j++) {
 			GLfloat vertex_data[] = {
 				-0.45f, -0.45f, 0, 0.9, 0.9, 0.9,
 				0.45f, -0.45f, 0, 0.9, 0.9, 0.9,
@@ -62,29 +82,45 @@ void Core::addInitialObjects() {
 		}
 	}
 
-	// Prepare building things
-	// Architectural concept: modernized middle-age
-	// (lots of symmetry, few colors, geometric shapes, semi-open)
+	// pillars
+	for(int dx = -2; dx < 2; dx++) {
+		for(int dy = -2; dy < 2; dy++) {
+			const float spacing = 5;
+			const float height = 4;
 
+			attachCuboid(scene.unsafeGet(scene.add()),
+				Eigen::Vector3f(0.5, 0.5, height),
+				Eigen::Vector3f((dx + 0.5) * spacing, (dy + 0.5) * spacing, height / 2));
+		}
+	}
+
+	// Generate chairs
+	std::mt19937 random;
+	for(int i = 0; i < 8; i++) {
+		const float height = std::normal_distribution<float>(0.45, 0.1)(random);
+
+		const float px = std::normal_distribution<float>(0, 4)(random);
+		const float py = std::normal_distribution<float>(0, 4)(random);
+
+		// pillar
+		attachCuboid(scene.unsafeGet(scene.add()),
+			Eigen::Vector3f(0.08, 0.08, height),
+			Eigen::Vector3f(px, py, height * 0.5));
+
+		// seat
+		attachCuboid(scene.unsafeGet(scene.add()),
+			Eigen::Vector3f(0.25, 0.25, 0.07),
+			Eigen::Vector3f(px, py, height));
+	}
+
+	
+	// stairs
 	for(int i = 0; i < 10; i++) {
 		attachCuboid(scene.unsafeGet(scene.add()),
 			Eigen::Vector3f(1, 0.2, 0.2),
 			Eigen::Vector3f(1.5, 1.5 + 0.2 * i, 0.1 + 0.2 * i));
 	}
 	
-
-	// Prepare avatar things
-	attachLocomotionRing(scene.unsafeGet(scene.add()));
-
-	// Prepare dasher things
-	attachTextQuadAt(scene.unsafeGet(scene.add()), "Input    ", 0.1, 0, 1, 1.8);
-
-	ObjectId input_object = scene.add();
-	attachTextQuadAt(scene.unsafeGet(input_object), "------------------------", 0.12, 0, 1, 1.0);	
-
-	attachDasherQuadAt(scene.unsafeGet(scene.add()), input_object, 0.5, 0, 0.9, 1.4);
-
-	eye_position = OVR::Vector3f(0, 0, 1.4);
 }
 
 void Core::attachCuboid(Object& object, Eigen::Vector3f size, Eigen::Vector3f pos) {
@@ -502,7 +538,7 @@ void Core::step() {
 	for(auto& object : scene.objects) {
 		if(object.second->nscript) {
 			if(object.first % 2 == native_script_counter) {
-				object.second->nscript->step(1.0 / 60, *object.second.get());
+				object.second->nscript->step(1.0 / 30, *object.second.get());
 			}
 		}
 	}
