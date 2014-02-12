@@ -132,7 +132,7 @@ void Core::addBuilding() {
 void Core::attachCuboid(Object& object,
 	Eigen::Vector3f size, Eigen::Vector3f pos, Eigen::Vector3f color) {
 
-	Eigen::Matrix<float, 6 * 6, 6, Eigen::RowMajor> vertex;
+	Eigen::Matrix<float, 6 * 6, 3 + 3, Eigen::RowMajor> vertex;
 	for(int i = 0; i < 3; i++) {
 		Eigen::Vector3f d(0, 0, 0);
 		Eigen::Vector3f e0(0, 0, 0);
@@ -165,22 +165,56 @@ void Core::attachCuboid(Object& object,
 	}
 
 	object.shader = standard_shader;
-	object.geometry = Geometry::createPosColor(6 * 6, vertex.data());
+	object.geometry = Geometry::createPosColor(vertex.rows(), vertex.data());
+}
+
+std::shared_ptr<Geometry> Core::generateTexQuadGeometry(
+	float width, float height, Eigen::Vector3f pos, Eigen::Matrix3f rot) {
+
+	Eigen::Matrix<float, 6, 3 + 2, Eigen::RowMajor> vertex;
+
+	GLfloat vertex_pos_uv[] = {
+		-1.0f, 0, -1.0f, 0, 1,
+		-1.0f, 0, 1.0f, 0, 0,
+		 1.0f, 0, 1.0f, 1, 0,
+
+		-1.0f, 0, -1.0f, 0, 1,
+		 1.0f, 0, 1.0f, 1, 0,
+		 1.0f, 0, -1.0f, 1, 1,
+	};
+
+	for(int i = 0; i < 6; i++) {
+		Eigen::Vector3f p_local(
+			vertex_pos_uv[i * 5 + 0] * width / 2,
+			vertex_pos_uv[i * 5 + 1],
+			vertex_pos_uv[i * 5 + 2] * height / 2);
+
+		vertex.row(i).head(3) = rot * p_local + pos;
+		vertex.row(i).tail(2) = Eigen::Vector2f(
+			vertex_pos_uv[i * 5 + 3], vertex_pos_uv[i * 5 + 4]);
+	}
+
+	return Geometry::createPosUV(vertex.rows(), vertex.data());
 }
 
 void Core::attachLocomotionRing(Object& object) {
-	GLfloat vertex_data[] = {
-		-0.45f, 0.25f, 0.1, 0.5, 0.5, 0.8,
-		0.45f, 0.25f, 0.1, 0.5, 0.5, 0.8,
-		0.45f,  0.45f, 0.1, 0.5, 0.5, 0.8,
+	// Maybe we need to adjust size etc. depending on distance to obstacles.
 
-		-0.45f, 0.25f, 0.1, 0.5, 0.5, 0.8,
-		0.45f,  0.45f, 0.1, 0.5, 0.5, 0.8,
-		-0.45f, 0.45f, 0.1, 0.5, 0.5, 0.8,
-	};
+	cairo_surface_t* locomotion_surface =
+		cairo_image_surface_create(CAIRO_FORMAT_ARGB32, 100, 100);
+	auto c_context = cairo_create(locomotion_surface);
+	cairo_set_source_rgb(c_context, 1, 1, 1);
+	cairo_paint(c_context);
+	cairo_destroy(c_context);
+	auto texture = createTextureFromSurface(locomotion_surface);
 
-	object.shader = standard_shader;
-	object.geometry = Geometry::createPosColor(6, &vertex_data[0]);
+	object.shader = texture_shader;
+	Eigen::Matrix3f rot;
+	rot = Eigen::AngleAxisf(-0.5 * 3.1415, Eigen::Vector3f::UnitX());
+	object.geometry = generateTexQuadGeometry(0.9, 0.4,
+		Eigen::Vector3f(0, 2.5, 0.05), rot);
+	object.texture = texture;
+	object.use_blend = false;
 }
 
 void Core::attachDasherQuadAt(ObjectId widget, ObjectId label, float height_meter, float dx, float dy, float dz) {
