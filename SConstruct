@@ -26,6 +26,7 @@ LIBS = [
 	'libudev',
 	'libv8',
 	'libX11',
+	'libXi',
 	'libXinerama',
 	'libXrandr',
 	]
