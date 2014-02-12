@@ -27,6 +27,7 @@ LIBS = [
 	'libv8',
 	'libX11',
 	'libXinerama',
+	'libXrandr',
 	]
 
 env.ParseConfig('pkg-config --cflags --libs --print-requires glfw3')
