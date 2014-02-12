@@ -29,7 +29,7 @@ LIBS = [
 	'libXinerama',
 	]
 
-env.ParseConfig('pkg-config --cflags --libs glfw3')
+env.ParseConfig('pkg-config --cflags --libs --print-requires glfw3')
 env.ParseConfig('pkg-config --cflags --libs jsoncpp')
 
 # main code
