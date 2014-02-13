@@ -89,8 +89,12 @@ void Scene::render() {
 
 		object->shader->use();
 		if(object->texture) {
+			OVR::Matrix4f m = 
+				OVR::Matrix4f::Translation(object->center);
+
 			object->texture->useIn(0);
 			object->shader->setUniform("texture", 0);
+			object->shader->setUniformMat4("local_to_world", &m.M[0][0]);
 		}
 		object->geometry->render();
 

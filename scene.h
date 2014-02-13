@@ -21,6 +21,11 @@ typedef uint64_t ObjectId;
 class NativeScript;
 class Scene;
 
+// There are two kinds of objects:
+// * static (base shader): once it's put, it can't be moved freely
+//  (we don't yet have enough resource to make everything look good, freely movable,
+// and not optimize it)
+// * UI (tex shader): can move freely, with almost no physics.
 class Object {
 public:
 	Object(Scene& scene);

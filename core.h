@@ -50,6 +50,7 @@ protected:
 
 	std::pair<OVR::Matrix4f, OVR::Matrix4f> calcHMDProjection(float scale);
 	OVR::Vector3f getHeadDirection();
+	void setMovingDirection(Eigen::Vector3f dir);
 
 	void usePreBuffer();
 	void useBackBuffer();
@@ -68,7 +69,14 @@ protected:
 	void attachCuboid(Object& object, Eigen::Vector3f size, Eigen::Vector3f pos, Eigen::Vector3f color = {0.9, 0.8, 0.8});
 
 	std::shared_ptr<Texture> createTextureFromSurface(cairo_surface_t* surface);
+
+	Eigen::Vector3f getFootPosition();
+	Eigen::Vector3f getEyePosition();
 private:
+	// avatar things.
+	Eigen::Vector3f avatar_foot_pos;
+	Eigen::Vector3f avatar_move_dir;
+
 	// GL - Scene things.
 	Scene scene;
 

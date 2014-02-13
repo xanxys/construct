@@ -12,7 +12,7 @@
 
 #include "ui.h"
 
-Core::Core(bool windowed) {
+Core::Core(bool windowed) : avatar_foot_pos(Eigen::Vector3f::Zero()) {
 	init(windowed ? DisplayMode::WINDOW : DisplayMode::HMD_FRAMELESS);
 	v8::V8::Initialize();
 
@@ -51,8 +51,14 @@ void Core::addInitialObjects() {
 	attachTextQuadAt(scene.unsafeGet(input_object), "------------------------", 0.12, 0, 1, 1.0);	
 
 	attachDasherQuadAt(scene.add(), input_object, 0.5, 0, 0.9, 1.4);
+}
 
-	eye_position = OVR::Vector3f(0, 0, 1.4);
+Eigen::Vector3f Core::getFootPosition() {
+	return avatar_foot_pos;
+}
+
+Eigen::Vector3f Core::getEyePosition() {
+	return avatar_foot_pos + Eigen::Vector3f(0, 0, 1.4);
 }
 
 // Architectural concept: modernized middle-age
@@ -214,6 +220,11 @@ void Core::attachLocomotionRing(Object& object) {
 	object.geometry = generateTexQuadGeometry(0.9, 0.4,
 		Eigen::Vector3f(0, 2.5, 0.05), rot);
 	object.texture = texture;
+	object.nscript.reset(new LocomotionScript(
+		std::bind(std::mem_fn(&Core::getHeadDirection), this),
+		std::bind(std::mem_fn(&Core::getEyePosition), this),
+		std::bind(std::mem_fn(&Core::setMovingDirection), this, std::placeholders::_1),
+		locomotion_surface));
 	object.use_blend = false;
 }
 
@@ -348,9 +359,12 @@ std::pair<OVR::Matrix4f, OVR::Matrix4f> Core::calcHMDProjection(float scale) {
 	OVR::Quatf hmdOrient = sensor_fusion->GetOrientation();
 	OVR::Matrix4f hmdMat(hmdOrient.Inverted());
 
+	auto eye_position = getEyePosition();
+
 	OVR::Matrix4f world = 
 		OVR::Matrix4f::RotationX(-OVR::Math<double>::Pi * 0.5) *
-		OVR::Matrix4f::Translation(-eye_position);
+		OVR::Matrix4f::Translation(
+			-eye_position.x(), -eye_position.y(), -eye_position.z());
 
 	return std::make_pair(
 		projLeft * viewLeft * hmdMat * world,
@@ -364,6 +378,10 @@ OVR::Vector3f Core::getHeadDirection() {
 	OVR::Matrix4f ovr_to_world = OVR::Matrix4f::RotationX(OVR::Math<double>::Pi * 0.5);
 
 	return (ovr_to_world * hmdMat).Transform(OVR::Vector3f(0, 0, -1));
+}
+
+void Core::setMovingDirection(Eigen::Vector3f dir) {
+	avatar_move_dir = dir;
 }
 
 void Core::usePreBuffer() {
@@ -547,6 +565,10 @@ void Core::init(DisplayMode mode) {
 }
 
 void Core::step() {
+	// 1.4 m/s is recommended in oculus best practice guide.
+	avatar_foot_pos += avatar_move_dir * 1.4 * (1.0 / 60);
+	avatar_foot_pos.z() = 0;
+
 	scene.step();
 }
 

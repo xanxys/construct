@@ -59,6 +59,82 @@ void DasherScript::step(float dt, Object& object) {
 }
 
 
+LocomotionScript::LocomotionScript(
+	std::function<OVR::Vector3f()> getHeadDirection,
+	std::function<Eigen::Vector3f()> getEyePosition,
+	std::function<void(Eigen::Vector3f)> setMovingDirection,
+	cairo_surface_t* surface) :
+	getHeadDirection(getHeadDirection),
+	getEyePosition(getEyePosition),
+	setMovingDirection(setMovingDirection),
+	surface(surface) {
+}
+
+LocomotionScript::~LocomotionScript() {
+	cairo_surface_destroy(surface);
+}
+
+void LocomotionScript::step(float dt, Object& object) {
+	setMovingDirection(Eigen::Vector3f::Zero());
+
+	const auto center_u = getEyePosition() - Eigen::Vector3f(0, 0, 1.4 - 0.05);
+	object.center = OVR::Vector3f(center_u.x(), center_u.y(), center_u.z());
+
+	auto dir_pre = getHeadDirection();
+
+	const Eigen::Vector3f org = getEyePosition();
+	const Eigen::Vector3f dir(dir_pre.x, dir_pre.y, dir_pre.z);
+	
+	// Intersect ray with z = 0.05  (p.dot(normal) = dist)
+	const Eigen::Vector3f normal(0, 0, 1);
+	const float dist = 0.05;
+
+	const float t = (dist - normal.dot(org)) / normal.dot(dir);
+
+	if(t <= 0 || t > 10) {
+		return;
+	}
+
+	const Eigen::Vector3f isect = org + t * dir;
+
+	// Calculate position in normalized surface coord [0,1]^2.
+	const Eigen::Vector3f center = center_u + Eigen::Vector3f(0, 2.5, 0);
+	const Eigen::Vector3f size(0.9, 0.4, 0.1);
+
+	const Eigen::Vector3f nc = (isect - center + size/2).cwiseQuotient(size);
+
+
+	if(nc.x() < 0 || nc.y() < 0 || nc.x() > 1 || nc.y() > 1) {
+		return;
+	}
+
+
+	// Draw something.
+	auto ctx = cairo_create(surface);
+
+	cairo_set_source_rgb(ctx, 1, 1, 1);
+	cairo_paint(ctx);
+
+	// cursor
+	cairo_new_path(ctx);
+	cairo_arc(ctx, 100 * nc.x(), 100 - 100 * nc.y(), 5, 0, 2 * 3.1415);
+	cairo_set_source_rgb(ctx, 1, 0, 0);
+	cairo_set_line_width(ctx, 3);
+	cairo_stroke(ctx);
+
+	cairo_destroy(ctx);
+
+	object.texture->useIn();
+	glTexImage2D(GL_TEXTURE_2D, 0, GL_RGBA,
+		cairo_image_surface_get_width(surface),
+		cairo_image_surface_get_height(surface),
+		0, GL_BGRA, GL_UNSIGNED_BYTE,
+		cairo_image_surface_get_data(surface));
+
+	setMovingDirection((isect - Eigen::Vector3f(0, 0, 0.05)).normalized());
+}
+
+
 TextLabelScript::TextLabelScript(cairo_surface_t* surface) : surface(surface) {
 }
 
