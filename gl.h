@@ -59,9 +59,14 @@ public:
 	~Geometry();
 
 	void render();
+
+	std::vector<float>& getData();
+	void notifyDataChange();
 protected:
 	Geometry(int n_vertex, std::vector<int> attributes, const float* data);
 	int getColumns();
+
+	void sendToGPU();
 private:
 	const int n_vertex;
 	GLuint vertex_array;

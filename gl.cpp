@@ -1,6 +1,7 @@
 #include "gl.h"
 
 #include <array>
+#include <cassert>
 #include <fstream>
 #include <iostream>
 #include <numeric>
@@ -160,13 +161,10 @@ Geometry::Geometry(int n_vertex, std::vector<int> attributes, const float* data)
 		raw_data.push_back(data[i]);
 	}
 
-	// send to GPU
 	glGenVertexArrays(1, &vertex_array);
-	glBindVertexArray(vertex_array);
-
 	glGenBuffers(1, &vertex_buffer);
-	glBindBuffer(GL_ARRAY_BUFFER, vertex_buffer);
-	glBufferData(GL_ARRAY_BUFFER, sizeof(float) * n_vertex * getColumns(), data, GL_STATIC_DRAW);
+
+	sendToGPU();
 }
 
 Geometry::~Geometry() {
@@ -176,6 +174,23 @@ Geometry::~Geometry() {
 
 int Geometry::getColumns() {
 	return std::accumulate(attributes.begin(), attributes.end(), 0);
+}
+
+void Geometry::sendToGPU() {
+	assert(raw_data.size() == n_vertex * getColumns());
+
+	glBindVertexArray(vertex_array);
+	glBindBuffer(GL_ARRAY_BUFFER, vertex_buffer);
+	glBufferData(GL_ARRAY_BUFFER,
+		sizeof(float) * raw_data.size(), raw_data.data(), GL_STATIC_DRAW);
+}
+
+std::vector<float>& Geometry::getData() {
+	return raw_data;
+}
+
+void Geometry::notifyDataChange() {
+	sendToGPU();
 }
 
 void Geometry::render() {

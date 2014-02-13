@@ -111,6 +111,29 @@ void Scene::step() {
 		objects.erase(target);
 	}
 	deletion.clear();
+
+	//updateLighting();
+}
+
+void Scene::updateLighting() {
+	// dummy process
+	for(auto& pair : objects) {
+		auto& object = pair.second;
+
+		if(!object->texture) {
+			auto& data = object->geometry->getData();
+
+			// assume pos + col format
+			for(int i = 0; i < data.size() / 6; i++) {
+				const float k = 0.9 + data[6 * i + 2] * 0.03;
+				data[6 * i + 3] *= k;
+				data[6 * i + 4] *= k;
+				data[6 * i + 5] *= k;
+			}
+
+			object->geometry->notifyDataChange();
+		}
+	}
 }
 
 void Scene::render() {

@@ -126,6 +126,9 @@ public:
 	void sendMessage(ObjectId destination, Json::Value value);
 	void deleteObject(ObjectId target);
 private:
+	void updateLighting();
+
+private:
 	// geometry
 	std::vector<Triangle> tris;
 
