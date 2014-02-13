@@ -66,4 +66,5 @@ private:
 	GLuint vertex_buffer;
 
 	std::vector<int> attributes;
+	std::vector<float> raw_data;
 };

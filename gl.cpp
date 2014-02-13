@@ -149,7 +149,16 @@ std::shared_ptr<Geometry> Geometry::createPosUV(int n_vertex, const float* pos_u
 		pos_uv));
 }
 
-Geometry::Geometry(int n_vertex, std::vector<int> attributes, const float* data) : n_vertex(n_vertex), attributes(attributes) {
+Geometry::Geometry(int n_vertex, std::vector<int> attributes, const float* data) :
+	n_vertex(n_vertex), attributes(attributes) {
+
+	// save to RAM
+	raw_data.reserve(n_vertex * getColumns());
+	for(int i = 0; i < n_vertex * getColumns(); i++) {
+		raw_data.push_back(data[i]);
+	}
+
+	// send to GPU
 	glGenVertexArrays(1, &vertex_array);
 	glBindVertexArray(vertex_array);
 
