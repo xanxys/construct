@@ -22,7 +22,9 @@ namespace construct {
 
 typedef uint64_t ObjectId;
 typedef Eigen::Vector3f Colorf;  // linear sRGB color
-typedef std::tuple<float, Eigen::Vector3f, Eigen::Vector3f> Intersection;  // t, pos, normal
+
+// t, pos, normal, outgoing irradiance
+typedef std::tuple<float, Eigen::Vector3f, Eigen::Vector3f, Colorf> Intersection;
 
 class NativeScript;
 class Scene;
@@ -102,14 +104,11 @@ public:
 	Triangle(Eigen::Vector3f p0, Eigen::Vector3f p1, Eigen::Vector3f p2);
 	boost::optional<Intersection> intersect(Ray ray);
 
-	// Use linear interpolation to get irradiance.
-	// if pos is not on the Triangle, returned value is undefined.
-	Colorf getIrradiance(Eigen::Vector3f pos);
-private:
-	Eigen::Vector3f p0;
-	Eigen::Vector3f d1;
-	Eigen::Vector3f d2;
+	Eigen::Vector3f getVertexPos(int i);
+	Eigen::Vector3f getNormal();
 
+	Colorf brdf();
+public:
 	// per-vertex irradiance.
 	// TODO: decide if these should be shared or not.
 	// pros of sharing:
@@ -121,6 +120,12 @@ private:
 	Colorf ir1;
 	Colorf ir2;
 
+
+	Eigen::Vector3f p0;
+	Eigen::Vector3f d1;
+	Eigen::Vector3f d2;
+
+private:
 	Eigen::Vector3f normal;
 	// pointer = 8 byte, Vec3f = 12 byte. storing reference is stupid.
 
@@ -162,11 +167,24 @@ public:
 	void sendMessage(ObjectId destination, Json::Value value);
 	void deleteObject(ObjectId target);
 private:
+	// TODO: Current process is tangled. Fix it.
+	// ideal:
+	//   Object.triangles ->
+	//   Scene.Geometry
+	// now:
+	//   Object.Geometry -(updateGeometry)->
+	//   Scene.triangles -(updateLighting)->
+	//   Scene.triangles -(updateIrradiance)->
+	//   Object.Geometry
 	void updateGeometry();
 	void updateLighting();
+	void updateIrradiance();
 	boost::optional<Intersection> intersect(Ray ray);
 
+	// Approximate integral(irradiance(pos, -dir_in) * normal(pos).dot(dir_in) for dir_in in sphere)
 	Colorf collectIrradiance(Eigen::Vector3f pos, Eigen::Vector3f normal);
+
+	int lighting_counter;
 private:
 	// geometry
 	std::vector<Triangle> tris;

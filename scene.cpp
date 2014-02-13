@@ -2,6 +2,8 @@
 
 namespace construct {
 
+const float pi = 3.14159265359;
+
 Object::Object(Scene& scene) : scene(scene), use_blend(false) {
 }
 
@@ -34,7 +36,8 @@ Ray::Ray(Eigen::Vector3f org, Eigen::Vector3f dir) : org(org), dir(dir) {
 
 
 Triangle::Triangle(Eigen::Vector3f p0, Eigen::Vector3f p1, Eigen::Vector3f p2) :
-	p0(p0), d1(p1 - p0), d2(p2 - p0), normal(d1.cross(d2).normalized()) {
+	p0(p0), d1(p1 - p0), d2(p2 - p0), normal(d1.cross(d2).normalized()),
+	ir0({0, 0, 0}), ir1({0, 0, 0}), ir2({0, 0, 0}) {
 	reflectance = Eigen::Vector3f(0.8, 0.8, 0.9);
 }
 
@@ -66,15 +69,31 @@ boost::optional<Intersection> Triangle::intersect(Ray ray) {
 	}
 
 	return boost::optional<Intersection>(std::make_tuple(
-		t, ray.org + ray.dir * t, normal));
+		t, ray.org + ray.dir * t, normal,
+		(1 - a - b) * ir0 + a * ir1 + b * ir2));
 }
 
-Colorf getIrradiance(Eigen::Vector3f pos) {
-	// TODO: implement!
-	return Colorf(0, 0, 0);
+Eigen::Vector3f Triangle::getVertexPos(int i) {
+	assert(0 <= i && i < 3);
+	if(i == 0) {
+		return p0;
+	} else if(i == 1) {
+		return p0 + d1;
+	} else {
+		return p0 + d2;
+	}
 }
 
-Scene::Scene() : new_id(0), native_script_counter(0) {
+Eigen::Vector3f Triangle::getNormal() {
+	return normal;
+}
+
+Colorf Triangle::brdf() {
+	return reflectance / pi;
+}
+
+
+Scene::Scene() : new_id(0), native_script_counter(0), lighting_counter(0) {
 }
 
 ObjectId Scene::add() {
@@ -127,7 +146,9 @@ void Scene::step() {
 	}
 	deletion.clear();
 
-	//updateLighting();
+	updateGeometry();
+	updateLighting();
+	updateIrradiance();
 }
 
 void Scene::updateGeometry() {
@@ -156,7 +177,27 @@ void Scene::updateGeometry() {
 }
 
 void Scene::updateLighting() {
-	// dummy process
+	// TODO: use proper multi-threading.
+	const int max_tris = 2;
+	
+	for(int i = 0; i < max_tris; i++) {
+		auto& tri = tris[i];
+
+		tri.ir0 = collectIrradiance(tri.getVertexPos(0), tri.getNormal())
+			.cwiseProduct(tri.brdf());
+		tri.ir1 = collectIrradiance(tri.getVertexPos(1), tri.getNormal())
+			.cwiseProduct(tri.brdf());
+		tri.ir2 = collectIrradiance(tri.getVertexPos(2), tri.getNormal())
+			.cwiseProduct(tri.brdf());
+
+		lighting_counter += 1;
+		lighting_counter %= tris.size();
+	}
+}
+
+void Scene::updateIrradiance() {
+	auto it = tris.begin();
+
 	for(auto& pair : objects) {
 		auto& object = pair.second;
 
@@ -164,16 +205,31 @@ void Scene::updateLighting() {
 			auto& data = object->geometry->getData();
 
 			// assume pos + col format
-			for(int i = 0; i < data.size() / 6; i++) {
-				const float k = 0.9 + data[6 * i + 2] * 0.03;
-				data[6 * i + 3] *= k;
-				data[6 * i + 4] *= k;
-				data[6 * i + 5] *= k;
+			for(int i = 0; i < data.size() / (6 * 3); i++) {
+				for(int j = 0; j < 3; j++) {
+					Colorf ir;
+					if(j == 0) {
+						ir = it->ir0;
+					} else if(j == 1) {
+						ir = it->ir1;
+					} else {
+						ir = it->ir2;
+					}
+
+					data[6 * (3 * i + j) + 3] = ir[0];
+					data[6 * (3 * i + j) + 4] = ir[1];
+					data[6 * (3 * i + j) + 5] = ir[2];
+				}
+
+				it++;
 			}
 
 			object->geometry->notifyDataChange();
 		}
 	}
+
+	// # of tris and total Geometry must match
+	assert(it == tris.end());
 }
 
 Colorf Scene::collectIrradiance(Eigen::Vector3f pos, Eigen::Vector3f normal) {
@@ -187,8 +243,7 @@ Colorf Scene::collectIrradiance(Eigen::Vector3f pos, Eigen::Vector3f normal) {
 		auto isect = intersect(ray);
 
 		if(isect) {
-
-			// std::get<1>(*isect)
+			accum += std::get<3>(*isect) * normal.dot(dir);
 		}
 	}
 	return accum / n_samples;
