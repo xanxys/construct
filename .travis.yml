@@ -1,7 +1,7 @@
 language: cpp
 compiler:
   - clang
-script: scons construct
+script: scons
 before_install:
   - sudo apt-get update -qq
   - sudo apt-get install -qq libv8-dev libeigen3-dev libjsoncpp-dev
@@ -18,3 +18,5 @@ before_install:
   - make
   - sudo make install
   - cd ..
+  - echo "Downloading library"
+  - ./fetch_dictionary.sh
