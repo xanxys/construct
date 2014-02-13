@@ -203,6 +203,26 @@ void Scene::updateLighting() {
 		lighting_counter += 1;
 		lighting_counter %= tris.size();
 	}
+
+	// tris = concat(geometry).
+	// Since most objects are cuboid, same face should exist just after
+	// current tri.
+	//
+	// TODO: lift this assumption.
+	for(int i = 0; i < tris.size() - 1; i++) {
+		if((tris[i].getVertexPos(1) - tris[i + 1].getVertexPos(2)).norm() < 1e-3 &&
+			(tris[i].getNormal() - tris[i + 1].getNormal()).norm() < 1e-3) {
+			// (i, 1) - (i + 1, 2)
+			// (i, 2) - (i + 1, 1)
+			const Colorf vx = (tris[i].ir1 + tris[i + 1].ir2) / 2;
+			const Colorf vy = (tris[i].ir2 + tris[i + 1].ir1) / 2;
+
+			tris[i].ir1 = vx;
+			tris[i + 1].ir2 = vx;
+			tris[i].ir2 = vy;
+			tris[i + 1].ir1 = vy;
+		}
+	}
 }
 
 void Scene::updateIrradiance() {
