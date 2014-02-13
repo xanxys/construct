@@ -30,7 +30,7 @@ class NativeScript;
 class Scene;
 
 template<class Generator>
-	Eigen::Vector3f sample_hemisphere(Generator g, Eigen::Vector3f n) {
+	Eigen::Vector3f sample_hemisphere(Generator& g, Eigen::Vector3f n) {
 
 	auto scalar = std::uniform_real_distribution<float>(-1, 1);
 	while(true) {
@@ -187,6 +187,7 @@ private:
 	// return value: radiance
 	Colorf collectIrradiance(Eigen::Vector3f pos, Eigen::Vector3f normal);
 
+	std::mt19937 random;
 	int lighting_counter;
 private:
 	// geometry

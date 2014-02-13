@@ -180,14 +180,21 @@ void Scene::updateLighting() {
 	// TODO: use proper multi-threading.
 	const int max_tris = 20;
 	
+	// assuming more than 5 samples.
+	const float blend_rate = 0.5;
+
 	for(int i = 0; i < max_tris; i++) {
 		auto& tri = tris[lighting_counter];
 
-		tri.ir0 = collectIrradiance(tri.getVertexPos(0), tri.getNormal())
+		tri.ir0 *= (1 - blend_rate);
+		tri.ir1 *= (1 - blend_rate);
+		tri.ir2 *= (1 - blend_rate);
+
+		tri.ir0 += blend_rate * collectIrradiance(tri.getVertexPos(0), tri.getNormal())
 			.cwiseProduct(tri.brdf());
-		tri.ir1 = collectIrradiance(tri.getVertexPos(1), tri.getNormal())
+		tri.ir1 += blend_rate * collectIrradiance(tri.getVertexPos(1), tri.getNormal())
 			.cwiseProduct(tri.brdf());
-		tri.ir2 = collectIrradiance(tri.getVertexPos(2), tri.getNormal())
+		tri.ir2 += blend_rate * collectIrradiance(tri.getVertexPos(2), tri.getNormal())
 			.cwiseProduct(tri.brdf());
 
 		lighting_counter += 1;
@@ -234,7 +241,7 @@ void Scene::updateIrradiance() {
 
 Colorf Scene::collectIrradiance(Eigen::Vector3f pos, Eigen::Vector3f normal) {
 	const int n_samples = 5;
-	std::mt19937 random;
+	
 
 	// For diffuse-like surface, luminance = candela / 2pi
 	//Colorf bg_radiance(200, 200, 220);  // overcast sky
@@ -253,7 +260,6 @@ Colorf Scene::collectIrradiance(Eigen::Vector3f pos, Eigen::Vector3f normal) {
 			accum += bg_radiance * normal.dot(dir);
 		}
 	}
-	std::cout << "Radiance: " << accum / n_samples << std::endl;
 	return accum / n_samples;
 }
 
