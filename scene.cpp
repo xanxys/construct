@@ -146,7 +146,7 @@ void Scene::step() {
 	}
 	deletion.clear();
 
-	updateGeometry();
+	//updateGeometry();
 	updateLighting();
 	updateIrradiance();
 }
@@ -178,10 +178,10 @@ void Scene::updateGeometry() {
 
 void Scene::updateLighting() {
 	// TODO: use proper multi-threading.
-	const int max_tris = 2;
+	const int max_tris = 20;
 	
 	for(int i = 0; i < max_tris; i++) {
-		auto& tri = tris[i];
+		auto& tri = tris[lighting_counter];
 
 		tri.ir0 = collectIrradiance(tri.getVertexPos(0), tri.getNormal())
 			.cwiseProduct(tri.brdf());
@@ -233,19 +233,27 @@ void Scene::updateIrradiance() {
 }
 
 Colorf Scene::collectIrradiance(Eigen::Vector3f pos, Eigen::Vector3f normal) {
-	const int n_samples = 50;
+	const int n_samples = 5;
 	std::mt19937 random;
+
+	// For diffuse-like surface, luminance = candela / 2pi
+	//Colorf bg_radiance(200, 200, 220);  // overcast sky
+	// TODO: make it linear
+	Colorf bg_radiance(1, 1, 1.1);
 
 	Colorf accum(0, 0, 0);
 	for(int i = 0; i < n_samples; i++) {
 		auto dir = sample_hemisphere(random, normal);
-		Ray ray(pos, dir);
+		Ray ray(pos + normal * 1e-5, dir);
 		auto isect = intersect(ray);
 
 		if(isect) {
 			accum += std::get<3>(*isect) * normal.dot(dir);
+		} else {
+			accum += bg_radiance * normal.dot(dir);
 		}
 	}
+	std::cout << "Radiance: " << accum / n_samples << std::endl;
 	return accum / n_samples;
 }
 

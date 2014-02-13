@@ -38,6 +38,7 @@ Core::Core(bool windowed) : avatar_foot_pos(Eigen::Vector3f::Zero()) {
 	std::cout << "V8 says: " << *ascii << std::endl;
 
 	addInitialObjects();
+	scene.updateGeometry();
 }
 
 void Core::addInitialObjects() {

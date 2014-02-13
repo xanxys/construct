@@ -23,7 +23,7 @@ namespace construct {
 typedef uint64_t ObjectId;
 typedef Eigen::Vector3f Colorf;  // linear sRGB color
 
-// t, pos, normal, outgoing irradiance
+// t, pos, normal, outgoing radiance
 typedef std::tuple<float, Eigen::Vector3f, Eigen::Vector3f, Colorf> Intersection;
 
 class NativeScript;
@@ -137,12 +137,12 @@ private:
 
 
 // Rendering equation for surfaces:
-// irradiance(pos, dir) = irradiance_emit(pos, dir) + 
-//   integral(brdf(pos, dir, dir_in) * irradiance(pos, -dir_in) * normal(pos).dot(dir_in)
+// radiance(pos, dir) = radiance_emit(pos, dir) + 
+//   integral(brdf(pos, dir, dir_in) * radiance(pos, -dir_in) * normal(pos).dot(dir_in)
 //      for dir_in in all_directions)
 //
 // By assuming Lambertian surface (brdf = reflectance / pi),
-// we can cache a single irradiance for pos to calculate outgoing irradiance for any dir.
+// we can cache a single irradiance for pos to calculate outgoing radiance for any dir.
 // (by the way, by using sum-of-product form, other BRDFs can be used. this is called separable BRDF)
 //
 // We can cache every part of scene this way.
@@ -166,6 +166,8 @@ public:
 	
 	void sendMessage(ObjectId destination, Json::Value value);
 	void deleteObject(ObjectId target);
+
+	void updateGeometry();
 private:
 	// TODO: Current process is tangled. Fix it.
 	// ideal:
@@ -176,12 +178,13 @@ private:
 	//   Scene.triangles -(updateLighting)->
 	//   Scene.triangles -(updateIrradiance)->
 	//   Object.Geometry
-	void updateGeometry();
+	
 	void updateLighting();
 	void updateIrradiance();
 	boost::optional<Intersection> intersect(Ray ray);
 
 	// Approximate integral(irradiance(pos, -dir_in) * normal(pos).dot(dir_in) for dir_in in sphere)
+	// return value: radiance
 	Colorf collectIrradiance(Eigen::Vector3f pos, Eigen::Vector3f normal);
 
 	int lighting_counter;
