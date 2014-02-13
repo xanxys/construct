@@ -7,7 +7,7 @@ before_install:
   - sudo apt-get install -qq libv8-dev libeigen3-dev libjsoncpp-dev
     libglew-dev libxinerama-dev libgl1-mesa-dev libboost-all-dev
     xorg-dev x11proto-xf86vidmode-dev libxrandr-dev libxi-dev
-    libudev-dev
+    libudev-dev libgtest-dev
   - echo "Enabling testing packages for C++11"
   - sudo add-apt-repository --yes ppa:ubuntu-toolchain-r/test
   - sudo apt-get update -qq
