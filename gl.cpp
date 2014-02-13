@@ -6,6 +6,8 @@
 #include <numeric>
 #include <sstream>
 
+namespace construct {
+
 std::shared_ptr<Shader> Shader::create(const std::string vertex_file_path, const std::string fragment_file_path) {
 	return std::shared_ptr<Shader>(new Shader(vertex_file_path, fragment_file_path));
 }
@@ -200,3 +202,5 @@ void Geometry::render() {
 		glDisableVertexAttribArray(i_attrib);
 	}
 }
+
+}  // namespace

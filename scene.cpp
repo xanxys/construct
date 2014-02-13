@@ -1,6 +1,6 @@
 #include "scene.h"
 
-
+namespace construct {
 
 Object::Object(Scene& scene) : scene(scene), use_blend(false) {
 }
@@ -103,3 +103,5 @@ void Scene::render() {
 		}
 	}
 }
+
+}  // namespace

@@ -12,6 +12,8 @@
 
 #include "ui.h"
 
+namespace construct {
+
 Core::Core(bool windowed) : avatar_foot_pos(Eigen::Vector3f::Zero()) {
 	init(windowed ? DisplayMode::WINDOW : DisplayMode::HMD_FRAMELESS);
 	v8::V8::Initialize();
@@ -684,3 +686,5 @@ void Core::run() {
 	
 	glfwTerminate();
 }
+
+}  // namespace

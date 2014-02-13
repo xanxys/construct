@@ -9,6 +9,7 @@
 
 #include <cairo/cairo.h>
 
+namespace construct {
 
 class EnglishModel {
 public:
@@ -87,3 +88,5 @@ public:
 	float local_index;
 	float local_half_span;
 };
+
+}  // namespace

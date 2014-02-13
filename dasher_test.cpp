@@ -5,6 +5,8 @@
 
 #include "gtest/gtest.h"
 
+using namespace construct;
+
 class LangModelTest : public ::testing::Test {
 protected:
 	virtual void SetUp() override {

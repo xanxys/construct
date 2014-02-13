@@ -21,6 +21,7 @@
 #include "OVR.h"
 #include "scene.h"
 
+namespace construct {
 
 class DasherScript : public NativeScript {
 public:
@@ -73,3 +74,5 @@ public:
 private:
 	cairo_surface_t* surface;
 };
+
+}  // namespace

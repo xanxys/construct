@@ -1,6 +1,6 @@
 #include "ui.h"
 
-
+namespace construct {
 
 DasherScript::DasherScript(
 	std::function<OVR::Vector3f()> getHeadDirection,
@@ -165,3 +165,5 @@ void TextLabelScript::step(float dt, Object& object) {
 			cairo_image_surface_get_data(surface));
 	}
 }
+
+}  // namespace

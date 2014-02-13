@@ -14,6 +14,8 @@
 #include "OVR.h"
 #include "scene.h"
 
+namespace construct {
+
 class Core {
 public:
 	Core(bool windowed = false);
@@ -106,3 +108,5 @@ private:
 	std::shared_ptr<Geometry> proxy;
 	std::shared_ptr<Texture> pre_buffer;
 };
+
+}  // namespace

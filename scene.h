@@ -16,6 +16,8 @@
 #include "OVR.h"
 #include "scene.h"
 
+namespace construct {
+
 typedef uint64_t ObjectId;
 
 class NativeScript;
@@ -77,3 +79,5 @@ private:
 
 	int native_script_counter;
 };
+
+}  // namespace

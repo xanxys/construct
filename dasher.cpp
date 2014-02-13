@@ -7,6 +7,7 @@
 #include <numeric>
 #include <thread>
 
+namespace construct {
 
 EnglishModel::EnglishModel(std::string w1_file, int limit) :
 	alphabet("abcdefghijklmnopqrstuvwxyz"),
@@ -432,3 +433,5 @@ void Dasher::drawNode(std::shared_ptr<ProbNode> node, cairo_t* ctx, float p0, fl
 		}
 	}
 }
+
+}  // namespace

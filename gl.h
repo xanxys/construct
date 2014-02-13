@@ -7,6 +7,8 @@
 
 #include <GL/glew.h>
 
+namespace construct {
+
 class Shader {
 public:
 	static std::shared_ptr<Shader> create(const std::string vertex_file_path, const std::string fragment_file_path);
@@ -68,3 +70,5 @@ private:
 	std::vector<int> attributes;
 	std::vector<float> raw_data;
 };
+
+}  // namespace

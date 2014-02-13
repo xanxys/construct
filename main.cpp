@@ -8,7 +8,7 @@ int main(int argc, char** argv) {
 		windowed = true;
 	}
 
-	Core core(windowed);
+	construct::Core core(windowed);
 	core.run();
 
 	return 0;
