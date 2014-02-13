@@ -15,6 +15,7 @@ env = Environment(
 env['ENV']['TERM'] = os.environ['TERM']
 
 # project specific code
+# DONT ADD NEW ENTRY HERE
 LIBS = [
 	'libboost_system-mt',
 	'libboost_thread-mt',
@@ -31,6 +32,7 @@ LIBS = [
 	'libXrandr',
 	]
 
+# ADD NEW ENTRY HERE
 env.ParseConfig('pkg-config --cflags --libs --print-requires glfw3')
 env.ParseConfig('pkg-config --cflags --libs jsoncpp')
 
