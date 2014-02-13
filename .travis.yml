@@ -20,3 +20,9 @@ before_install:
   - cd ..
   - echo "Downloading library"
   - ./fetch_dictionary.sh
+  - echo "Compiling gtest"
+  - cd /usr/src/gtest
+  - sudo cmake .
+  - sudo make
+  - sudo mv libg* /usr/lib/
+  - cd $TRAVIS_BUILD_DIR
