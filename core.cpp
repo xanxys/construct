@@ -14,7 +14,10 @@
 
 namespace construct {
 
-Core::Core(bool windowed) : avatar_foot_pos(Eigen::Vector3f::Zero()) {
+Core::Core(bool windowed) :
+	avatar_foot_pos(Eigen::Vector3f::Zero()),
+	max_luminance(150) {
+
 	init(windowed ? DisplayMode::WINDOW : DisplayMode::HMD_FRAMELESS);
 	v8::V8::Initialize();
 
@@ -549,7 +552,7 @@ void Core::init(DisplayMode mode) {
 	glGenFramebuffers(1, &FramebufferName);
 	glBindFramebuffer(GL_FRAMEBUFFER, FramebufferName);
 
-	pre_buffer = Texture::create(buffer_width, buffer_height);
+	pre_buffer = Texture::create(buffer_width, buffer_height, true);
 
 	// The depth buffer
 	GLuint depthrenderbuffer;
@@ -609,7 +612,8 @@ void Core::render() {
 	} else {
 		useBackBuffer();
 	}
-	glClearColor(1, 1, 1.1, 1);
+	auto bg = scene.getBackground();
+	glClearColor(bg[0], bg[1], bg[2], 1);
 	glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
 	glEnable(GL_DEPTH_TEST);
 
@@ -648,6 +652,11 @@ void Core::render() {
 			hmd.DistortionK[2], hmd.DistortionK[3]);
 		warp_shader->setUniform("Scale", 0.5f * scale, 0.5f * scale);
 		warp_shader->setUniform("ScaleIn", 2.0f, 2.0f);
+		// Measured oculus gamma = 2.3
+		// (by using an image at
+		//  http://www.eizo.co.jp/eizolibrary/other/itmedia02_07/)
+		warp_shader->setUniform("hmd_gamma", 2.3f);
+		warp_shader->setUniform("max_luminance", max_luminance);
 
 		// left
 		glViewport(0, 0, screen_width / 2, screen_height);

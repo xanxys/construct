@@ -99,22 +99,26 @@ void Shader::use() {
 }
 
 
-std::shared_ptr<Texture> Texture::create(int width, int height) {
-	return std::shared_ptr<Texture>(new Texture(width, height));
+std::shared_ptr<Texture> Texture::create(int width, int height, bool hdr) {
+	return std::shared_ptr<Texture>(new Texture(width, height, hdr));
 }
 
 GLuint Texture::unsafeGetId() {
 	return id;
 }
 
-Texture::Texture(int width, int height) {
+Texture::Texture(int width, int height, bool hdr) {
 	glGenTextures(1, &id);
 
 	// "Bind" the newly created texture : all future texture functions will modify this texture
 	glBindTexture(GL_TEXTURE_2D, id);
 
 	// Give an empty image to OpenGL ( the last "0" )
-	glTexImage2D(GL_TEXTURE_2D, 0, GL_RGB, width, height,0, GL_RGB, GL_UNSIGNED_BYTE, 0);
+	glTexImage2D(GL_TEXTURE_2D, 0,
+		hdr ? GL_RGB32F : GL_RGB8,
+		width, height, 0, GL_RGB,
+		hdr ? GL_FLOAT : GL_UNSIGNED_BYTE, 0);
+	
 
 	// Poor filtering. Needed !
 	glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_NEAREST);

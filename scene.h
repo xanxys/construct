@@ -168,6 +168,9 @@ public:
 	void deleteObject(ObjectId target);
 
 	void updateGeometry();
+
+	// luminance
+	Colorf getBackground();
 private:
 	// TODO: Current process is tangled. Fix it.
 	// ideal:
@@ -190,6 +193,8 @@ private:
 	std::mt19937 random;
 	int lighting_counter;
 private:
+	Colorf background;
+	
 	// geometry
 	std::vector<Triangle> tris;
 

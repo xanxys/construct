@@ -1,4 +1,6 @@
 #version 330
+uniform float hmd_gamma;
+uniform float max_luminance;
 uniform float diffusion;
 uniform vec2 LensCenter;
 uniform vec2 ScreenCenter;
@@ -19,14 +21,19 @@ vec2 HmdWarp(vec2 in01) {
 }
 
 
+vec4 tonemap(vec4 color) {
+	return vec4(pow(color.xyz / max_luminance, vec3(1 / hmd_gamma)), 1);
+}
+
+
 void main() {
 	vec2 tc = HmdWarp(oTexCoord);
 	if(!all(equal(clamp(tc, ScreenCenter-vec2(0.25,0.5), ScreenCenter+vec2(0.25,0.5)), tc)))
 		color = vec4(0);
 	else
-		color = (texture2D(Texture0, tc) +
+		color = tonemap((texture2D(Texture0, tc) +
 			texture2D(Texture0, tc + vec2(diffusion, 0)) +
 			texture2D(Texture0, tc + vec2(-diffusion, 0)) +
 			texture2D(Texture0, tc + vec2(0, diffusion)) +
-			texture2D(Texture0, tc + vec2(0, -diffusion))) / 5;
+			texture2D(Texture0, tc + vec2(0, -diffusion))) / 5);
 }

@@ -35,13 +35,13 @@ private:
 class Texture {
 public:
 	~Texture();
-	static std::shared_ptr<Texture> create(int width, int height);
+	static std::shared_ptr<Texture> create(int width, int height, bool hdr = false);
 	GLuint unsafeGetId();
 
 	// n: texture slot index
 	void useIn(int n = 0);
 private:
-	Texture(int width, int height);
+	Texture(int width, int height, bool hdr);
 private:
 	GLuint id;
 };

@@ -76,6 +76,7 @@ protected:
 	Eigen::Vector3f getEyePosition();
 private:
 	// avatar things.
+	float max_luminance;
 	Eigen::Vector3f avatar_foot_pos;
 	Eigen::Vector3f avatar_move_dir;
 

@@ -93,7 +93,10 @@ Colorf Triangle::brdf() {
 }
 
 
-Scene::Scene() : new_id(0), native_script_counter(0), lighting_counter(0) {
+// For diffuse-like surface, luminance = candela / 2pi
+// overcast sky = (200, 200, 220)
+Scene::Scene() : new_id(0), native_script_counter(0), lighting_counter(0),
+	background(200, 200, 220) {
 }
 
 ObjectId Scene::add() {
@@ -242,12 +245,6 @@ void Scene::updateIrradiance() {
 Colorf Scene::collectIrradiance(Eigen::Vector3f pos, Eigen::Vector3f normal) {
 	const int n_samples = 5;
 	
-
-	// For diffuse-like surface, luminance = candela / 2pi
-	//Colorf bg_radiance(200, 200, 220);  // overcast sky
-	// TODO: make it linear
-	Colorf bg_radiance(1, 1, 1.1);
-
 	Colorf accum(0, 0, 0);
 	for(int i = 0; i < n_samples; i++) {
 		auto dir = sample_hemisphere(random, normal);
@@ -257,10 +254,14 @@ Colorf Scene::collectIrradiance(Eigen::Vector3f pos, Eigen::Vector3f normal) {
 		if(isect) {
 			accum += std::get<3>(*isect) * normal.dot(dir);
 		} else {
-			accum += bg_radiance * normal.dot(dir);
+			accum += background * normal.dot(dir);
 		}
 	}
 	return accum / n_samples;
+}
+
+Colorf Scene::getBackground() {
+	return background;
 }
 
 void Scene::render() {
