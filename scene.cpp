@@ -69,6 +69,10 @@ boost::optional<Intersection> Triangle::intersect(Ray ray) {
 		t, ray.org + ray.dir * t, normal));
 }
 
+Colorf getIrradiance(Eigen::Vector3f pos) {
+	// TODO: implement!
+	return Colorf(0, 0, 0);
+}
 
 Scene::Scene() : new_id(0), native_script_counter(0) {
 }
@@ -94,6 +98,17 @@ void Scene::deleteObject(ObjectId target) {
 	deletion.push_back(target);
 }
 
+boost::optional<Intersection> Scene::intersect(Ray ray) {
+	boost::optional<Intersection> isect_nearest;
+	for(auto& tri : tris) {
+		auto isect = tri.intersect(ray);
+		if(isect && (!isect_nearest || std::get<0>(*isect) < std::get<0>(*isect_nearest))) {
+			isect_nearest = isect;
+		}
+	}
+	return isect_nearest;
+}
+
 void Scene::step() {
 	// Native Script expects 30fps
 	// Running at 60fps
@@ -115,6 +130,31 @@ void Scene::step() {
 	//updateLighting();
 }
 
+void Scene::updateGeometry() {
+	tris.clear();
+	tris.reserve(objects.size());
+
+	for(auto& pair : objects) {
+		// Ignore UI elements.
+		if(pair.second->texture) {
+			continue;
+		}
+
+		// Extract tris from PosCol format.
+		auto& data = pair.second->geometry->getData();
+		for(int i = 0; i < data.size() / (6 * 3); i++) {
+			std::array<Eigen::Vector3f, 3> vertex;
+			for(int j = 0; j < 3; j++) {
+				vertex[j] = Eigen::Vector3f(
+					data[6 * (3 * i + j) + 0],
+					data[6 * (3 * i + j) + 1],
+					data[6 * (3 * i + j) + 2]);
+			}
+			tris.push_back(Triangle(vertex[0], vertex[1], vertex[2]));
+		}
+	}
+}
+
 void Scene::updateLighting() {
 	// dummy process
 	for(auto& pair : objects) {
@@ -134,6 +174,24 @@ void Scene::updateLighting() {
 			object->geometry->notifyDataChange();
 		}
 	}
+}
+
+Colorf Scene::collectIrradiance(Eigen::Vector3f pos, Eigen::Vector3f normal) {
+	const int n_samples = 50;
+	std::mt19937 random;
+
+	Colorf accum(0, 0, 0);
+	for(int i = 0; i < n_samples; i++) {
+		auto dir = sample_hemisphere(random, normal);
+		Ray ray(pos, dir);
+		auto isect = intersect(ray);
+
+		if(isect) {
+
+			// std::get<1>(*isect)
+		}
+	}
+	return accum / n_samples;
 }
 
 void Scene::render() {

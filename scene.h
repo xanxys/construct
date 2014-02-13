@@ -27,6 +27,27 @@ typedef std::tuple<float, Eigen::Vector3f, Eigen::Vector3f> Intersection;  // t,
 class NativeScript;
 class Scene;
 
+template<class Generator>
+	Eigen::Vector3f sample_hemisphere(Generator g, Eigen::Vector3f n) {
+
+	auto scalar = std::uniform_real_distribution<float>(-1, 1);
+	while(true) {
+		Eigen::Vector3f v(scalar(g), scalar(g), scalar(g));
+		const float length = v.norm();
+
+		// Reject vectors outside unit sphere
+		if(length > 1) {
+			continue;
+		}
+
+		v /= length;
+		if(v.dot(n) > 0) {
+			return v;
+		} else {
+			return -v;
+		}
+	}
+}
 
 
 // There are two kinds of objects:
@@ -80,10 +101,25 @@ class Triangle {
 public:
 	Triangle(Eigen::Vector3f p0, Eigen::Vector3f p1, Eigen::Vector3f p2);
 	boost::optional<Intersection> intersect(Ray ray);
+
+	// Use linear interpolation to get irradiance.
+	// if pos is not on the Triangle, returned value is undefined.
+	Colorf getIrradiance(Eigen::Vector3f pos);
 private:
 	Eigen::Vector3f p0;
 	Eigen::Vector3f d1;
 	Eigen::Vector3f d2;
+
+	// per-vertex irradiance.
+	// TODO: decide if these should be shared or not.
+	// pros of sharing:
+	// * typically 1/3 lighting computation
+	// cons of sharing:
+	// * more complex and inflexible architecture (needs mesh class)
+	// * slower lookup (due to de-referencing vertex info)
+	Colorf ir0;
+	Colorf ir1;
+	Colorf ir2;
 
 	Eigen::Vector3f normal;
 	// pointer = 8 byte, Vec3f = 12 byte. storing reference is stupid.
@@ -126,8 +162,11 @@ public:
 	void sendMessage(ObjectId destination, Json::Value value);
 	void deleteObject(ObjectId target);
 private:
+	void updateGeometry();
 	void updateLighting();
+	boost::optional<Intersection> intersect(Ray ray);
 
+	Colorf collectIrradiance(Eigen::Vector3f pos, Eigen::Vector3f normal);
 private:
 	// geometry
 	std::vector<Triangle> tris;
