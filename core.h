@@ -13,6 +13,7 @@
 #include "gl.h"
 #include "OVR.h"
 #include "scene.h"
+#include "sky.h"
 
 namespace construct {
 
@@ -87,6 +88,7 @@ private:
 
 	// GL - Scene things.
 	Scene scene;
+	Sky sky;  // TODO: sky should be tied to Scene (or a coordinate frame)
 
 	// TODO: dependency on these shaders prevents moving attach... methods
 	// to ui.cpp
