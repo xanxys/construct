@@ -3,7 +3,7 @@
 #include <memory>
 
 #include "gl.h"
-#include "scene.h"
+#include "util.h"
 
 namespace construct {
 
@@ -16,12 +16,11 @@ public:
 	// Return 1:2 texture
 	// direction spec: TBD
 	std::shared_ptr<Texture> generateEquirectangular();
-protected:
+
 	Colorf getRadianceAt(float theta, float phi, bool checkerboard = false);
-
+	Colorf getRadianceAt(Eigen::Vector3f dir, bool checkerboard = false);
+protected:
 	float particleDensity(float alpha, float distance, float theta);
-
-	
 
 	// Total Scattering
 	Colorf rayleighTotal();

@@ -43,7 +43,12 @@ std::shared_ptr<Texture> Sky::generateEquirectangular() {
 	return texture;
 }
 
-// TODO: implement preetham sky model
+Colorf Sky::getRadianceAt(Eigen::Vector3f dir, bool checkerboard) {
+	float theta = std::acos(dir.z());
+	float phi = std::atan2(dir.y(), dir.x());
+	return getRadianceAt(theta, phi, checkerboard);
+}
+
 Colorf Sky::getRadianceAt(float theta, float phi, bool checkerboard) {
 	if(checkerboard) {
 		const int x = theta / (pi / 5);
@@ -73,56 +78,10 @@ Colorf Sky::getRadianceAt(float theta, float phi, bool checkerboard) {
 	const float alpha_haze = 0.8333;  // haze: /km
 	const float alpha_mole = 0.1136;  // molecules: /km
 
-	// Constants for closed form solution of accumulated decay factor.
-	/*
-	const float k_haze = - beta0 / (alpha_haze * std::cos(theta));
-	const float h_haze = std::exp(- alpha_haze * view_height);
-
-	const float k_mole = - beta0 / (alpha_mole * std::cos(theta));
-	const float h_mole = std::exp(- alpha_mole * view_height);
-	*/
-
-	// We use Eq.9 and 1km step numerical integration.
-	// (Since it's easier to understand)
-	// Considering up to 50km is enough. (which is top of stratosphere)
-	//
-	// TODO: if we use numerical calculation, we don't need to
-	// pre-calculate decay factor at each distance.
-	// Just decay step-by-step!! (like ray-tracing fog).
-	//
-	// Consider doing this when we add clouds.
-	/*
-	float intensity_haze = 0;
-	for(int i = 0; i < 50; i++) {
-		const float distance = i;
-		const float density_haze = particleDensity(alpha_haze, distance);
-		const float density_mole = particleDensity(alpha_mole, distance);
-
-		intensity_haze +=
-			density_haze *
-			std::exp(-k_haze * (h_haze - density_haze)) *
-			std::exp(-k_mole * (h_mole - density_mole));
-	}
-
-	float intensity_mole = 0;
-	for(int i = 0; i < 50; i++) {
-		const float distance = i;
-		const float density_haze = particleDensity(alpha_haze, distance);
-		const float density_mole = particleDensity(alpha_mole, distance);
-
-		intensity_mole +=
-			density_mole *
-			std::exp(-k_haze * (h_haze - density_haze)) *
-			std::exp(-k_mole * (h_mole - density_mole));
-	}
-	*/
-
 	const Eigen::Vector3f view_direction(
 		std::sin(theta) * std::cos(phi),
 		std::sin(theta) * std::sin(phi),
-		std::cos(theta));
-
-	
+		std::cos(theta));	
 
 	// Based on Nishita's 1st-order scattering sky model.
 	// We ignore point-to-space decay.

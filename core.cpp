@@ -10,7 +10,9 @@
 #include <json/json.h>
 #include <v8.h>
 
+#include "sky.h"
 #include "ui.h"
+#include "util.h"
 
 namespace construct {
 
@@ -255,7 +257,7 @@ void Core::attachSky(Object& object) {
 	object.geometry = Geometry::createPosUV(vertex.rows(), vertex.data());
 
 	// Create HDR texture
-	object.texture = sky.generateEquirectangular();
+	object.texture = scene.getBackgroundImage();
 	object.shader = texture_shader;
 }
 
@@ -662,8 +664,7 @@ void Core::render() {
 	} else {
 		useBackBuffer();
 	}
-	auto bg = scene.getBackground();
-	glClearColor(bg[0], bg[1], bg[2], 1);
+	glClearColor(0, 0, 0, 1);
 	glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
 	glEnable(GL_DEPTH_TEST);
 

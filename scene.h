@@ -17,11 +17,12 @@
 #include "gl.h"
 #include "OVR.h"
 #include "scene.h"
+#include "sky.h"
+#include "util.h"
 
 namespace construct {
 
 typedef uint64_t ObjectId;
-typedef Eigen::Vector3f Colorf;  // linear sRGB color
 
 // t, pos, normal, outgoing radiance
 typedef std::tuple<float, Eigen::Vector3f, Eigen::Vector3f, Colorf> Intersection;
@@ -169,8 +170,7 @@ public:
 
 	void updateGeometry();
 
-	// luminance
-	Colorf getBackground();
+	std::shared_ptr<Texture> getBackgroundImage();
 private:
 	// TODO: Current process is tangled. Fix it.
 	// ideal:
@@ -193,7 +193,7 @@ private:
 	std::mt19937 random;
 	int lighting_counter;
 private:
-	Colorf background;
+	Sky sky;
 	
 	// geometry
 	std::vector<Triangle> tris;

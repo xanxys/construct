@@ -95,8 +95,7 @@ Colorf Triangle::brdf() {
 
 // For diffuse-like surface, luminance = candela / 2pi
 // overcast sky = (200, 200, 220)
-Scene::Scene() : new_id(0), native_script_counter(0), lighting_counter(0),
-	background(200, 200, 220) {
+Scene::Scene() : new_id(0), native_script_counter(0), lighting_counter(0) {
 }
 
 ObjectId Scene::add() {
@@ -271,17 +270,17 @@ Colorf Scene::collectIrradiance(Eigen::Vector3f pos, Eigen::Vector3f normal) {
 		Ray ray(pos + normal * 1e-5, dir);
 		auto isect = intersect(ray);
 
-		if(isect) {
-			accum += std::get<3>(*isect) * normal.dot(dir);
-		} else {
-			accum += background * normal.dot(dir);
-		}
+		const Colorf radiance = isect ?
+			std::get<3>(*isect) :
+			sky.getRadianceAt(dir);
+
+		accum += radiance * normal.dot(dir);
 	}
 	return accum / n_samples;
 }
 
-Colorf Scene::getBackground() {
-	return background;
+std::shared_ptr<Texture> Scene::getBackgroundImage() {
+	return sky.generateEquirectangular();
 }
 
 void Scene::render() {
