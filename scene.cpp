@@ -261,6 +261,14 @@ void Scene::updateIrradiance() {
 	assert(it == tris.end());
 }
 
+Colorf Scene::getRadiance(Ray ray) {
+	auto isect = intersect(ray);
+
+	return isect ?
+		std::get<3>(*isect) :
+		sky.getRadianceAt(ray.dir);
+}
+
 Colorf Scene::collectIrradiance(Eigen::Vector3f pos, Eigen::Vector3f normal) {
 	const int n_samples = 5;
 	
@@ -268,13 +276,7 @@ Colorf Scene::collectIrradiance(Eigen::Vector3f pos, Eigen::Vector3f normal) {
 	for(int i = 0; i < n_samples; i++) {
 		auto dir = sample_hemisphere(random, normal);
 		Ray ray(pos + normal * 1e-5, dir);
-		auto isect = intersect(ray);
-
-		const Colorf radiance = isect ?
-			std::get<3>(*isect) :
-			sky.getRadianceAt(dir);
-
-		accum += radiance * normal.dot(dir);
+		accum += getRadiance(ray) * normal.dot(dir);
 	}
 	return accum / n_samples;
 }

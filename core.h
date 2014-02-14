@@ -16,6 +16,8 @@
 
 namespace construct {
 
+// Core (and a lot of code in Scene) assumes fixed 60fps.
+// Make it variable when HMD with 60+fps is released.
 class Core {
 public:
 	Core(bool windowed = false);
@@ -48,20 +50,28 @@ protected:
 	// Update everything, and draw final image to the back buffer.
 	void render();
 
+	void printDisplays();
 	GLFWmonitor* findHMDMonitor(std::string name, int px, int py);
-
-	std::pair<OVR::Matrix4f, OVR::Matrix4f> calcHMDProjection(float scale);
-	OVR::Vector3f getHeadDirection();
-	void setMovingDirection(Eigen::Vector3f dir);
 
 	void usePreBuffer();
 	void useBackBuffer();
 
-	void printDisplays();
+	// avatar related
+	std::pair<OVR::Matrix4f, OVR::Matrix4f> calcHMDProjection(float scale);
+	Eigen::Vector3f getFootPosition();
+	Eigen::Vector3f getEyePosition();
+	OVR::Vector3f getHeadDirection();
 
-	
-	void attachSky(Object& object);
-	
+	Eigen::Vector3f getViewUp();
+	Eigen::Vector3f getViewRight();
+	Eigen::Vector3f getViewCenter();
+	void setMovingDirection(Eigen::Vector3f dir);
+	float estimateMaxRadiance();
+
+	void adaptEyes();
+
+	// objects
+	void attachSky(Object& object);	
 	void attachDasherQuadAt(ObjectId widget, ObjectId label, float height, float dx, float dy, float dz);
 	void attachTextQuadAt(Object& object, std::string text, float height, float dx, float dy, float dz);
 	void attachLocomotionRing(Object& object);
@@ -74,9 +84,6 @@ protected:
 	void attachCuboid(Object& object, Eigen::Vector3f size, Eigen::Vector3f pos, Eigen::Vector3f color = {0.9, 0.8, 0.8});
 
 	std::shared_ptr<Texture> createTextureFromSurface(cairo_surface_t* surface);
-
-	Eigen::Vector3f getFootPosition();
-	Eigen::Vector3f getEyePosition();
 private:
 	// avatar things.
 	float max_luminance;

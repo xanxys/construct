@@ -18,6 +18,10 @@ namespace construct {
 
 const float pi = 3.14159265359;
 
+Eigen::Vector3f ovrToEigen(OVR::Vector3f v) {
+	return Eigen::Vector3f(v.x, v.y, v.z);
+}
+
 Eigen::Vector3f projectSphere(float theta, float phi) {
 	return Eigen::Vector3f(
 		std::sin(theta) * std::cos(phi),
@@ -78,6 +82,53 @@ Eigen::Vector3f Core::getFootPosition() {
 
 Eigen::Vector3f Core::getEyePosition() {
 	return avatar_foot_pos + Eigen::Vector3f(0, 0, 1.4);
+}
+
+Eigen::Vector3f Core::getViewCenter() {
+	return ovrToEigen(getHeadDirection());
+}
+
+float Core::estimateMaxRadiance() {
+	const auto eye_pos = getEyePosition();
+	const auto view_center = getViewCenter();
+	const auto view_r = getViewRight();
+	const auto view_u = getViewUp();
+
+	std::vector<float> radiances;
+	for(int i = -5; i < 6; i++) {
+		for (int j = -5; j < 6; j++) {
+			Eigen::Vector3f sample_dir =
+				view_center +
+				view_u * i / 5.0 +
+				view_r * j / 8.0;
+			sample_dir.normalize();
+
+			radiances.push_back(
+				scene.getRadiance(Ray(eye_pos, sample_dir)).norm());
+		}
+	}
+	std::sort(radiances.begin(), radiances.end());
+
+	const int ix_b = static_cast<int>(radiances.size() * 0.75);
+	float acc = 0;
+	for(int i = ix_b; i < radiances.size(); i++) {
+		acc += radiances[i];
+	}
+	return acc / (radiances.size() - ix_b);
+}
+
+void Core::adaptEyes() {
+	// pupillary reflex takes about 250ms to complete.
+	// http://www.faa.gov/data_research/research/med_humanfacs/oamtechreports/1960s/media/AM65-25.pdf
+	const float latency = 0.25;
+	const float frame_count = 60 * latency;
+
+	const float lum = estimateMaxRadiance();
+
+	// Blend ratio s.t. 90% complete is achieved with specified latency.
+	// in log space!
+	const float ratio = 1 - std::pow(0.1, 1.0 / frame_count);
+	max_luminance = std::exp((1 - ratio) * std::log(max_luminance) + ratio * std::log(lum));
 }
 
 // Architectural concept: modernized middle-age
@@ -438,6 +489,22 @@ OVR::Vector3f Core::getHeadDirection() {
 	return (ovr_to_world * hmdMat).Transform(OVR::Vector3f(0, 0, -1));
 }
 
+Eigen::Vector3f Core::getViewUp() {
+	OVR::Quatf hmdOrient = sensor_fusion->GetOrientation();
+	OVR::Matrix4f hmdMat(hmdOrient);
+	OVR::Matrix4f ovr_to_world = OVR::Matrix4f::RotationX(OVR::Math<double>::Pi * 0.5);
+
+	return ovrToEigen((ovr_to_world * hmdMat).Transform(OVR::Vector3f(0, 1, 0)));
+}
+
+Eigen::Vector3f Core::getViewRight() {
+	OVR::Quatf hmdOrient = sensor_fusion->GetOrientation();
+	OVR::Matrix4f hmdMat(hmdOrient);
+	OVR::Matrix4f ovr_to_world = OVR::Matrix4f::RotationX(OVR::Math<double>::Pi * 0.5);
+
+	return ovrToEigen((ovr_to_world * hmdMat).Transform(OVR::Vector3f(1, 0, 0)));
+}
+
 void Core::setMovingDirection(Eigen::Vector3f dir) {
 	avatar_move_dir = dir;
 }
@@ -626,6 +693,8 @@ void Core::step() {
 	// 1.4 m/s is recommended in oculus best practice guide.
 	avatar_foot_pos += avatar_move_dir * 1.4 * (1.0 / 60);
 	avatar_foot_pos.z() = 0;
+
+	adaptEyes();
 
 	scene.step();
 }

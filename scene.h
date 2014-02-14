@@ -171,6 +171,8 @@ public:
 	void updateGeometry();
 
 	std::shared_ptr<Texture> getBackgroundImage();
+
+	Colorf getRadiance(Ray ray);
 private:
 	// TODO: Current process is tangled. Fix it.
 	// ideal:
