@@ -14,6 +14,15 @@
 
 namespace construct {
 
+const float pi = 3.14159265359;
+
+Eigen::Vector3f projectSphere(float theta, float phi) {
+	return Eigen::Vector3f(
+		std::sin(theta) * std::cos(phi),
+		std::sin(theta) * std::sin(phi),
+		std::cos(theta));
+}
+
 Core::Core(bool windowed) :
 	avatar_foot_pos(Eigen::Vector3f::Zero()),
 	max_luminance(150) {
@@ -45,6 +54,8 @@ Core::Core(bool windowed) :
 }
 
 void Core::addInitialObjects() {
+	attachSky(scene.unsafeGet(scene.add()));
+
 	addBuilding();
 
 	// Prepare avatar things
@@ -209,6 +220,64 @@ std::shared_ptr<Geometry> Core::generateTexQuadGeometry(
 	return Geometry::createPosUV(vertex.rows(), vertex.data());
 }
 
+void Core::attachSky(Object& object) {
+	// UV sphere for Equirectangular mapping.
+	const int n_vert = 25;
+	const int n_horz = n_vert * 2;
+	Eigen::Matrix<float, n_vert * n_horz * 6, 3 + 2, Eigen::RowMajor> vertex;
+	for(int y = 0; y < n_vert; y++) {
+		const float theta0 = static_cast<float>(y) / n_vert * pi;
+		const float theta1 = static_cast<float>(y + 1) / n_vert * pi;
+
+		for(int x = 0; x < n_horz; x++) {
+			const float phi0 = static_cast<float>(x) / n_vert * pi;
+			const float phi1 = static_cast<float>(x + 1) / n_vert * pi;
+
+			// n.b. we're looking from inside.
+			vertex.row(6 * (y * n_horz + x) + 0).head(3) = projectSphere(theta0, phi0) * 500;
+			vertex.row(6 * (y * n_horz + x) + 1).head(3) = projectSphere(theta0, phi1) * 500;
+			vertex.row(6 * (y * n_horz + x) + 2).head(3) = projectSphere(theta1, phi0) * 500;
+
+			vertex.row(6 * (y * n_horz + x) + 3).head(3) = projectSphere(theta1, phi1) * 500;
+			vertex.row(6 * (y * n_horz + x) + 4).head(3) = projectSphere(theta1, phi0) * 500;
+			vertex.row(6 * (y * n_horz + x) + 5).head(3) = projectSphere(theta0, phi1) * 500;
+
+			vertex.row(6 * (y * n_horz + x) + 0).tail(2) = Eigen::Vector2f(phi0 / (2 * pi), theta0 / pi);
+			vertex.row(6 * (y * n_horz + x) + 1).tail(2) = Eigen::Vector2f(phi1 / (2 * pi), theta0 / pi);
+			vertex.row(6 * (y * n_horz + x) + 2).tail(2) = Eigen::Vector2f(phi0 / (2 * pi), theta1 / pi);
+
+			vertex.row(6 * (y * n_horz + x) + 3).tail(2) = Eigen::Vector2f(phi1 / (2 * pi), theta1 / pi);
+			vertex.row(6 * (y * n_horz + x) + 4).tail(2) = Eigen::Vector2f(phi0 / (2 * pi), theta1 / pi);
+			vertex.row(6 * (y * n_horz + x) + 5).tail(2) = Eigen::Vector2f(phi1 / (2 * pi), theta0 / pi);
+		}
+	}
+
+	object.geometry = Geometry::createPosUV(vertex.rows(), vertex.data());
+
+	// Create HDR texture
+	const int height = 512;
+	const int width = height * 2;
+	auto texture = Texture::create(width, height, true);
+
+	std::vector<float> data(width * height * 3, 0);
+	for(int y = 0; y < height; y++) {
+		for(int x = 0; x < width; x++) {
+			// Random data.
+			const int parity = ((x / 16) ^ (y / 16)) % 2;
+			const float val = parity ? 150 : 100;
+			data[(y * width + x) * 3 + 0] = val;
+			data[(y * width + x) * 3 + 1] = val;
+			data[(y * width + x) * 3 + 2] = val;
+		}
+	}
+
+	texture->useIn();
+	glTexImage2D(GL_TEXTURE_2D, 0, GL_RGB32F, width, height, 0, GL_RGB, GL_FLOAT, data.data());
+
+	object.texture = texture;
+	object.shader = texture_shader;
+}
+
 void Core::attachLocomotionRing(Object& object) {
 	// Maybe we need to adjust size etc. depending on distance to obstacles.
 
@@ -351,7 +420,7 @@ std::pair<OVR::Matrix4f, OVR::Matrix4f> Core::calcHMDProjection(float scale) {
 	const float projectionCenterOffset = 4.0f * eyeProjectionShift / hmd.HScreenSize;
 
 	// Projection matrix for the "center eye", which the left/right matrices are based on.
-	OVR::Matrix4f projCenter = OVR::Matrix4f::PerspectiveRH(yfov, aspectRatio, 0.1f, 100.0f);
+	OVR::Matrix4f projCenter = OVR::Matrix4f::PerspectiveRH(yfov, aspectRatio, 0.1f, 1000.0f);
 	OVR::Matrix4f projLeft = OVR::Matrix4f::Translation(projectionCenterOffset, 0, 0) * projCenter;
 	OVR::Matrix4f projRight = OVR::Matrix4f::Translation(-projectionCenterOffset, 0, 0) * projCenter;
 

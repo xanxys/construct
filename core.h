@@ -58,6 +58,11 @@ protected:
 	void useBackBuffer();
 
 	void printDisplays();
+
+	// Sky should be special object; sky, weather, astronomy have
+	// large-scale, non-interactive effects, such as
+	// lighting, particle, fog, temperature, humidity.
+	void attachSky(Object& object);
 	
 	void attachDasherQuadAt(ObjectId widget, ObjectId label, float height, float dx, float dy, float dz);
 	void attachTextQuadAt(Object& object, std::string text, float height, float dx, float dy, float dz);
