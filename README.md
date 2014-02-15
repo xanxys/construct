@@ -1,6 +1,8 @@
 Construct [![Build Status](https://travis-ci.org/xanxys/construct.png?branch=master)](https://travis-ci.org/xanxys/construct)
 ==========
 
+[!Screenshot](screenshot.png)
+
 Core GUI
 ----------
 Everything should be controllable with head-tracking.
