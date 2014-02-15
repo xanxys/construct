@@ -93,11 +93,11 @@ void Core::attachCursor(Object& object) {
 	Eigen::Matrix3f rot;
 	rot = Eigen::AngleAxisf(-0.5 * 3.1415, Eigen::Vector3f::UnitX());
 	object.geometry = generateTexQuadGeometry(0.1, 0.1,
-		Eigen::Vector3f(0, 1.5, 0.05), rot);
+		Eigen::Vector3f(0, 0, 0.05), rot);
 	object.texture = texture;
 	
 	object.nscript.reset(new CursorScript(
-		std::bind(std::mem_fn(&Core::getHeadDirection), this),
+		std::bind(std::mem_fn(&Core::getViewCenter), this),
 		std::bind(std::mem_fn(&Core::getEyePosition), this),
 		cursor_surface));
 	object.use_blend = false;

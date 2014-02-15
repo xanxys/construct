@@ -183,6 +183,8 @@ public:
 	std::shared_ptr<Texture> getBackgroundImage();
 
 	Colorf getRadiance(Ray ray);
+
+	boost::optional<Intersection> intersect(Ray ray);
 private:
 	// TODO: Current process is tangled. Fix it.
 	// ideal:
@@ -196,7 +198,7 @@ private:
 	
 	void updateLighting();
 	void updateIrradiance();
-	boost::optional<Intersection> intersect(Ray ray);
+	
 
 	// Approximate integral(irradiance(pos, -dir_in) * normal(pos).dot(dir_in) for dir_in in sphere)
 	// return value: radiance

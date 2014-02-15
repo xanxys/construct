@@ -168,7 +168,7 @@ void TextLabelScript::step(float dt, Object& object) {
 
 
 CursorScript::CursorScript(
-	std::function<OVR::Vector3f()> getHeadDirection,
+	std::function<Eigen::Vector3f()> getHeadDirection,
 	std::function<Eigen::Vector3f()> getEyePosition,
 	cairo_surface_t* surface) :
 	getHeadDirection(getHeadDirection),
@@ -181,7 +181,17 @@ CursorScript::~CursorScript() {
 }
 
 void CursorScript::step(float dt, Object& object) {
-	
+	Ray ray(getEyePosition(), getHeadDirection());
+	auto isect = object.scene.intersect(ray);
+
+	if(!isect) {
+		// TODO: hide
+	} else {
+		auto pos = std::get<1>(*isect);
+		auto normal = std::get<2>(*isect);
+
+		object.center = OVR::Vector3f(pos.x(), pos.y(), pos.z());
+	}
 }
 
 }  // namespace
