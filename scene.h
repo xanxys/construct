@@ -52,6 +52,10 @@ template<class Generator>
 	}
 }
 
+enum ObjectType {
+	UI,
+	STATIC,
+};
 
 // There are two kinds of objects:
 // * static (base shader): once it's put, it can't be moved freely
@@ -78,6 +82,8 @@ public:
 	boost::optional<Json::Value> getMessage();
 
 	Scene& scene;
+
+	ObjectType type;
 private:
 	std::vector<Json::Value> queue;
 };

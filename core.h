@@ -75,6 +75,7 @@ protected:
 	void attachDasherQuadAt(ObjectId widget, ObjectId label, float height, float dx, float dy, float dz);
 	void attachTextQuadAt(Object& object, std::string text, float height, float dx, float dy, float dz);
 	void attachLocomotionRing(Object& object);
+	void attachCursor(Object& object);
 
 	// default orientation is to surface look "normal" to Y- direction, with size
 	// [-width/2, width/2] * [0,0] * [-height/2, height/2].

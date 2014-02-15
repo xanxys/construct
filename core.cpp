@@ -74,6 +74,33 @@ void Core::addInitialObjects() {
 	attachTextQuadAt(scene.unsafeGet(input_object), "------------------------", 0.12, 0, 1, 1.0);	
 
 	attachDasherQuadAt(scene.add(), input_object, 0.5, 0, 0.9, 1.4);
+
+	attachCursor(scene.unsafeGet(scene.add()));
+}
+
+void Core::attachCursor(Object& object) {
+	cairo_surface_t* cursor_surface =
+		cairo_image_surface_create(CAIRO_FORMAT_ARGB32, 50, 50);
+	auto c_context = cairo_create(cursor_surface);
+	cairo_set_source_rgb(c_context, 1, 0, 0);
+	cairo_paint(c_context);
+	cairo_destroy(c_context);
+	auto texture = createTextureFromSurface(cursor_surface);
+
+	object.shader = texture_shader;
+	Eigen::Matrix3f rot;
+	rot = Eigen::AngleAxisf(-0.5 * 3.1415, Eigen::Vector3f::UnitX());
+	object.geometry = generateTexQuadGeometry(0.1, 0.1,
+		Eigen::Vector3f(0, 1.5, 0.05), rot);
+	object.texture = texture;
+	/*
+	object.nscript.reset(new LocomotionScript(
+		std::bind(std::mem_fn(&Core::getHeadDirection), this),
+		std::bind(std::mem_fn(&Core::getEyePosition), this),
+		std::bind(std::mem_fn(&Core::setMovingDirection), this, std::placeholders::_1),
+		cursor_surface));
+	*/
+	object.use_blend = false;
 }
 
 Eigen::Vector3f Core::getFootPosition() {
