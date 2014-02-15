@@ -75,4 +75,22 @@ private:
 	cairo_surface_t* surface;
 };
 
+
+class CursorScript : public NativeScript {
+public:
+	CursorScript(
+		std::function<OVR::Vector3f()> getHeadDirection,
+		std::function<Eigen::Vector3f()> getEyePosition,
+		cairo_surface_t* surface);
+	~CursorScript();
+
+	void step(float dt, Object& object) override;
+private:
+	// TODO: unsafe reference to Core. Remove.
+	std::function<OVR::Vector3f()> getHeadDirection;
+	std::function<Eigen::Vector3f()> getEyePosition;
+
+	cairo_surface_t* surface;
+};
+
 }  // namespace

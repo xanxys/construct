@@ -88,6 +88,7 @@ protected:
 private:
 	// avatar things.
 	float max_luminance;
+	OVR::Vector3f eye_position;
 	Eigen::Vector3f avatar_foot_pos;
 	Eigen::Vector3f avatar_move_dir;
 
@@ -99,8 +100,6 @@ private:
 	std::shared_ptr<Shader> standard_shader;
 	std::shared_ptr<Shader> texture_shader;
 	std::shared_ptr<Shader> warp_shader;
-
-	OVR::Vector3f eye_position;
 
 	// OVR-GL things.
 	GLuint FramebufferName;

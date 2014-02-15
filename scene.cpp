@@ -4,7 +4,7 @@ namespace construct {
 
 const float pi = 3.14159265359;
 
-Object::Object(Scene& scene) : scene(scene), use_blend(false) {
+Object::Object(Scene& scene) : scene(scene), use_blend(false), center({0, 0, 0}) {
 }
 
 void Object::addMessage(Json::Value value) {
@@ -300,12 +300,22 @@ void Scene::render() {
 		}
 
 		object->shader->use();
-		if(object->texture) {
+		if(object->type == ObjectType::UI) {
 			OVR::Matrix4f m = 
 				OVR::Matrix4f::Translation(object->center);
 
 			object->texture->useIn(0);
 			object->shader->setUniform("texture", 0);
+			object->shader->setUniform("luminance", 25.0f);
+			object->shader->setUniformMat4("local_to_world", &m.M[0][0]);
+		} else if(object->type == ObjectType::SKY) {
+			// TODO: Remove this, since it should be always Identity.
+			OVR::Matrix4f m = 
+				OVR::Matrix4f::Translation(object->center);
+
+			object->texture->useIn(0);
+			object->shader->setUniform("texture", 0);
+			object->shader->setUniform("luminance", 1.0f);
 			object->shader->setUniformMat4("local_to_world", &m.M[0][0]);
 		}
 		object->geometry->render();

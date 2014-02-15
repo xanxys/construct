@@ -166,4 +166,22 @@ void TextLabelScript::step(float dt, Object& object) {
 	}
 }
 
+
+CursorScript::CursorScript(
+	std::function<OVR::Vector3f()> getHeadDirection,
+	std::function<Eigen::Vector3f()> getEyePosition,
+	cairo_surface_t* surface) :
+	getHeadDirection(getHeadDirection),
+	getEyePosition(getEyePosition),
+	surface(surface) {
+}
+
+CursorScript::~CursorScript() {
+	cairo_surface_destroy(surface);
+}
+
+void CursorScript::step(float dt, Object& object) {
+	
+}
+
 }  // namespace

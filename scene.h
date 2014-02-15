@@ -55,6 +55,7 @@ template<class Generator>
 enum ObjectType {
 	UI,
 	STATIC,
+	SKY,
 };
 
 // There are two kinds of objects:
@@ -69,6 +70,9 @@ public:
 	OVR::Vector3f center;
 
 	bool use_blend;
+
+	// These details should not belong to Object. Instead,
+	// they are generated as needed in lighting etc.
 	std::shared_ptr<Geometry> geometry;
 	std::shared_ptr<Shader> shader;
 

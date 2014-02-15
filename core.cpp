@@ -88,18 +88,18 @@ void Core::attachCursor(Object& object) {
 	auto texture = createTextureFromSurface(cursor_surface);
 
 	object.shader = texture_shader;
+	object.type = ObjectType::UI;
+
 	Eigen::Matrix3f rot;
 	rot = Eigen::AngleAxisf(-0.5 * 3.1415, Eigen::Vector3f::UnitX());
 	object.geometry = generateTexQuadGeometry(0.1, 0.1,
 		Eigen::Vector3f(0, 1.5, 0.05), rot);
 	object.texture = texture;
-	/*
-	object.nscript.reset(new LocomotionScript(
+	
+	object.nscript.reset(new CursorScript(
 		std::bind(std::mem_fn(&Core::getHeadDirection), this),
 		std::bind(std::mem_fn(&Core::getEyePosition), this),
-		std::bind(std::mem_fn(&Core::setMovingDirection), this, std::placeholders::_1),
 		cursor_surface));
-	*/
 	object.use_blend = false;
 }
 
@@ -268,6 +268,7 @@ void Core::attachCuboid(Object& object,
 	}
 
 	object.shader = standard_shader;
+	object.type = ObjectType::STATIC;
 	object.geometry = Geometry::createPosColor(vertex.rows(), vertex.data());
 }
 
@@ -337,6 +338,7 @@ void Core::attachSky(Object& object) {
 	// Create HDR texture
 	object.texture = scene.getBackgroundImage();
 	object.shader = texture_shader;
+	object.type = ObjectType::SKY;
 }
 
 void Core::attachLocomotionRing(Object& object) {
@@ -351,6 +353,7 @@ void Core::attachLocomotionRing(Object& object) {
 	auto texture = createTextureFromSurface(locomotion_surface);
 
 	object.shader = texture_shader;
+	object.type = ObjectType::UI;
 	Eigen::Matrix3f rot;
 	rot = Eigen::AngleAxisf(-0.5 * 3.1415, Eigen::Vector3f::UnitX());
 	object.geometry = generateTexQuadGeometry(0.9, 0.4,
@@ -385,6 +388,7 @@ void Core::attachDasherQuadAt(ObjectId widget, ObjectId label, float height_mete
 
 	// Create geometry with texture.
 	object.shader = texture_shader;
+	object.type = ObjectType::UI;
 	object.geometry = generateTexQuadGeometry(width_meter, height_meter,
 		Eigen::Vector3f(dx, dy, dz), Eigen::Matrix3f::Identity());
 	object.texture = texture;
@@ -422,6 +426,7 @@ void Core::attachTextQuadAt(Object& object, std::string text, float height_meter
 	auto texture = createTextureFromSurface(surf);
 
 	object.shader = texture_shader;
+	object.type = ObjectType::UI;
 	object.geometry = generateTexQuadGeometry(width_meter, height_meter,
 		Eigen::Vector3f(dx, dy, dz), Eigen::Matrix3f::Identity());
 	object.texture = texture;
