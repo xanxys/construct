@@ -1,7 +1,7 @@
 Construct [![Build Status](https://travis-ci.org/xanxys/construct.png?branch=master)](https://travis-ci.org/xanxys/construct)
 ==========
 
-[!Screenshot](screenshot.png)
+![Screenshot](screenshot.png)
 
 Core GUI
 ----------
