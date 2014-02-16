@@ -34,16 +34,9 @@ void DasherScript::step(float dt, Object& object) {
 
 	// center
 	cairo_new_path(ctx);
-	cairo_arc(ctx, 125, 125, 1, 0, 2 * 3.1415);
+	cairo_arc(ctx, 125, 125, 1, 0, 2 * pi);
 	cairo_set_source_rgb(ctx, 1, 0, 0);
 	cairo_fill(ctx);
-
-	// cursor
-	cairo_new_path(ctx);
-	cairo_arc(ctx, 125 + dir.x * 250, 125 - dir.z * 250, 10, 0, 2 * 3.1415);
-	cairo_set_source_rgb(ctx, 1, 0, 0);
-	cairo_set_line_width(ctx, 3);
-	cairo_stroke(ctx);
 
 	cairo_destroy(ctx);
 
@@ -115,13 +108,6 @@ void LocomotionScript::step(float dt, Object& object) {
 	cairo_set_source_rgb(ctx, 1, 1, 1);
 	cairo_paint(ctx);
 
-	// cursor
-	cairo_new_path(ctx);
-	cairo_arc(ctx, 100 * nc.x(), 100 - 100 * nc.y(), 5, 0, 2 * 3.1415);
-	cairo_set_source_rgb(ctx, 1, 0, 0);
-	cairo_set_line_width(ctx, 3);
-	cairo_stroke(ctx);
-
 	cairo_destroy(ctx);
 
 	object.texture->useIn();
@@ -188,7 +174,7 @@ void CursorScript::step(float dt, Object& object) {
 		// TODO: hide
 	} else {
 		object.setLocalToWorld(
-			Eigen::Translation<float, 3>(isect->first + isect->second * 0.05) *
+			Eigen::Translation<float, 3>(isect->first + isect->second * 0.01) *
 			createBasis(isect->second));
 	}
 }
@@ -196,7 +182,12 @@ void CursorScript::step(float dt, Object& object) {
 Eigen::Matrix3f CursorScript::createBasis(Eigen::Vector3f normal) {
 	auto seed_y = Eigen::Vector3f::UnitX();
 
-	auto axis_x = seed_y.cross(normal).normalized();
+	auto axis_x = seed_y.cross(normal);
+	if(axis_x.norm() == 0) {
+		axis_x = Eigen::Vector3f::UnitY().cross(normal).normalized();
+	} else {
+		axis_x.normalize();
+	}
 	auto axis_y = normal.cross(axis_x).normalized();
 
 	Eigen::Matrix3f m;

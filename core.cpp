@@ -83,24 +83,26 @@ void Core::attachCursor(Object& object) {
 		cairo_image_surface_create(CAIRO_FORMAT_ARGB32, 50, 50);
 	auto c_context = cairo_create(cursor_surface);
 	cairo_set_source_rgb(c_context, 1, 0, 0);
-	cairo_paint(c_context);
+	cairo_arc(c_context, 25, 25, 20, 0, 2 * pi);
+	cairo_set_line_width(c_context, 3);
+	cairo_stroke(c_context);
 	cairo_destroy(c_context);
 	auto texture = createTextureFromSurface(cursor_surface);
 
 	object.shader = texture_shader;
-	object.type = ObjectType::UI;
+	object.type = ObjectType::UI_CURSOR;
 
 	Eigen::Matrix3f rot;
-	rot = Eigen::AngleAxisf(-0.5 * 3.1415, Eigen::Vector3f::UnitX());
+	rot = Eigen::AngleAxisf(-0.5 * pi, Eigen::Vector3f::UnitX());
 	object.geometry = generateTexQuadGeometry(0.1, 0.1,
 		Eigen::Vector3f::Zero(), rot);
 	object.texture = texture;
+	object.use_blend = true;
 	
 	object.nscript.reset(new CursorScript(
 		std::bind(std::mem_fn(&Core::getViewCenter), this),
 		std::bind(std::mem_fn(&Core::getEyePosition), this),
 		cursor_surface));
-	object.use_blend = false;
 }
 
 Eigen::Vector3f Core::getFootPosition() {
@@ -279,11 +281,11 @@ std::shared_ptr<Geometry> Core::generateTexQuadGeometry(
 
 	GLfloat vertex_pos_uv[] = {
 		-1.0f, 0, -1.0f, 0, 1,
+		1.0f, 0, 1.0f, 1, 0,
 		-1.0f, 0, 1.0f, 0, 0,
-		 1.0f, 0, 1.0f, 1, 0,
 
-		-1.0f, 0, -1.0f, 0, 1,
 		 1.0f, 0, 1.0f, 1, 0,
+		 -1.0f, 0, -1.0f, 0, 1,
 		 1.0f, 0, -1.0f, 1, 1,
 	};
 
@@ -355,7 +357,7 @@ void Core::attachLocomotionRing(Object& object) {
 	object.shader = texture_shader;
 	object.type = ObjectType::UI;
 	Eigen::Matrix3f rot;
-	rot = Eigen::AngleAxisf(-0.5 * 3.1415, Eigen::Vector3f::UnitX());
+	rot = Eigen::AngleAxisf(-0.5 * pi, Eigen::Vector3f::UnitX());
 	object.geometry = generateTexQuadGeometry(0.9, 0.4,
 		Eigen::Vector3f(0, 2.5, 0.05), rot);
 	object.texture = texture;

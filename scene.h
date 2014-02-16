@@ -53,6 +53,7 @@ template<class Generator>
 
 enum ObjectType {
 	UI,
+	UI_CURSOR,
 	STATIC,
 	SKY,
 };
@@ -158,6 +159,9 @@ private:
 	void updateLighting();
 	void updateIrradiance();
 	
+	void updateUIGeometry();
+
+	boost::optional<Intersection> intersectUI(Ray ray);
 	boost::optional<Intersection> intersect(Ray ray);
 
 	// Approximate integral(irradiance(pos, -dir_in) * normal(pos).dot(dir_in) for dir_in in sphere)
@@ -171,7 +175,7 @@ private:
 	
 	// geometry
 	std::vector<Triangle> tris;
-
+	std::vector<Triangle> tris_ui;
 
 	// nodes
 	std::map<ObjectId, std::unique_ptr<Object>> objects;

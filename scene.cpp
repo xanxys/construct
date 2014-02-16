@@ -2,7 +2,8 @@
 
 namespace construct {
 
-Object::Object(Scene& scene) : scene(scene), use_blend(false) {
+Object::Object(Scene& scene) : scene(scene), use_blend(false),
+	local_to_world(Transform3f::Identity()) {
 }
 
 void Object::addMessage(Json::Value value) {
@@ -24,7 +25,7 @@ void Object::setLocalToWorld(Transform3f trans) {
 }
 
 Transform3f Object::getLocalToWorld() {
-	if(type != ObjectType::UI) {
+	if(type != ObjectType::UI && type != UI_CURSOR) {
 		throw "Non UI component doesn't have tranform";
 	}
 
@@ -68,7 +69,24 @@ void Scene::deleteObject(ObjectId target) {
 boost::optional<std::pair<Eigen::Vector3f, Eigen::Vector3f>>
 	Scene::intersectAny(Ray ray) {
 
-	auto isect = intersect(ray);
+	// Intersect UI elements.
+	auto isect_static = intersect(ray);
+	auto isect_ui = intersectUI(ray);
+
+	boost::optional<Intersection> isect;
+	if(isect_ui && isect_static) {
+		if(std::get<0>(*isect_ui) < std::get<0>(*isect_static)) {
+			isect = isect_ui;
+		} else {
+			isect = isect_static;
+		}
+	} else if(isect_ui) {
+		isect = isect_ui;
+	} else if(isect_static) {
+		isect = isect_static;
+	}
+
+	// Convert.
 	if(isect) {
 		return boost::optional<
 			std::pair<Eigen::Vector3f, Eigen::Vector3f>>(
@@ -77,6 +95,17 @@ boost::optional<std::pair<Eigen::Vector3f, Eigen::Vector3f>>
 		return boost::optional<
 			std::pair<Eigen::Vector3f, Eigen::Vector3f>>();
 	}
+}
+
+boost::optional<Intersection> Scene::intersectUI(Ray ray) {
+	boost::optional<Intersection> isect_nearest;
+	for(auto& tri : tris_ui) {
+		auto isect = tri.intersect(ray);
+		if(isect && (!isect_nearest || std::get<0>(*isect) < std::get<0>(*isect_nearest))) {
+			isect_nearest = isect;
+		}
+	}
+	return isect_nearest;
 }
 
 boost::optional<Intersection> Scene::intersect(Ray ray) {
@@ -109,6 +138,7 @@ void Scene::step() {
 	deletion.clear();
 
 	//updateGeometry();
+	updateUIGeometry();
 	updateLighting();
 	updateIrradiance();
 }
@@ -116,10 +146,8 @@ void Scene::step() {
 void Scene::updateGeometry() {
 	tris.clear();
 	tris.reserve(objects.size());
-
 	for(auto& pair : objects) {
-		// Ignore UI elements.
-		if(pair.second->texture) {
+		if(pair.second->type != ObjectType::STATIC) {
 			continue;
 		}
 
@@ -134,6 +162,31 @@ void Scene::updateGeometry() {
 					data[6 * (3 * i + j) + 2]);
 			}
 			tris.push_back(Triangle(vertex[0], vertex[1], vertex[2]));
+		}
+	}
+}
+
+void Scene::updateUIGeometry() {
+	tris_ui.clear();
+	for(auto& pair : objects) {
+		if(pair.second->type != ObjectType::UI) {
+			continue;
+		}
+
+		auto trans = pair.second->getLocalToWorld();
+
+		// Extract tris from PosUV format.
+		auto& data = pair.second->geometry->getData();
+		for(int i = 0; i < data.size() / (5 * 3); i++) {
+			std::array<Eigen::Vector3f, 3> vertex;
+			for(int j = 0; j < 3; j++) {
+				vertex[j] = trans * Eigen::Vector3f(
+					data[5 * (3 * i + j) + 0],
+					data[5 * (3 * i + j) + 1],
+					data[5 * (3 * i + j) + 2]);
+				//std::cout << "UI vert:" << vertex[j] << std::endl;
+			}
+			tris_ui.push_back(Triangle(vertex[0], vertex[1], vertex[2]));
 		}
 	}
 }
@@ -260,7 +313,7 @@ void Scene::render() {
 		}
 
 		object->shader->use();
-		if(object->type == ObjectType::UI) {
+		if(object->type == ObjectType::UI || object->type == UI_CURSOR) {
 			Eigen::Matrix<float, 4, 4, Eigen::RowMajor> m =
 				object->getLocalToWorld().matrix();
 
