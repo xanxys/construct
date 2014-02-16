@@ -86,6 +86,11 @@ public:
 
 	void step(float dt, Object& object) override;
 private:
+	// Generate a transform such that:
+	// x,y -> perpendiculat to normal
+	// z -> normal
+	Eigen::Matrix3f createBasis(Eigen::Vector3f normal);
+private:
 	// TODO: unsafe reference to Core. Remove.
 	std::function<Eigen::Vector3f()> getHeadDirection;
 	std::function<Eigen::Vector3f()> getEyePosition;

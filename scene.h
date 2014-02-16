@@ -15,6 +15,7 @@
 #include <glfw3.h>
 
 #include "gl.h"
+#include "light.h"
 #include "OVR.h"
 #include "scene.h"
 #include "sky.h"
@@ -23,9 +24,6 @@
 namespace construct {
 
 typedef uint64_t ObjectId;
-
-// t, pos, normal, outgoing radiance
-typedef std::tuple<float, Eigen::Vector3f, Eigen::Vector3f, Colorf> Intersection;
 
 class NativeScript;
 class Scene;
@@ -100,53 +98,6 @@ public:
 };
 
 
-class Ray {
-public:
-	Ray(Eigen::Vector3f org, Eigen::Vector3f dir);
-
-	Eigen::Vector3f org;
-	Eigen::Vector3f dir;
-};
-
-
-// Used for lighting.
-class Triangle {
-public:
-	Triangle(Eigen::Vector3f p0, Eigen::Vector3f p1, Eigen::Vector3f p2);
-	boost::optional<Intersection> intersect(Ray ray);
-
-	Eigen::Vector3f getVertexPos(int i);
-	Eigen::Vector3f getNormal();
-
-	Colorf brdf();
-public:
-	// per-vertex irradiance.
-	// TODO: decide if these should be shared or not.
-	// pros of sharing:
-	// * typically 1/3 lighting computation
-	// cons of sharing:
-	// * more complex and inflexible architecture (needs mesh class)
-	// * slower lookup (due to de-referencing vertex info)
-	Colorf ir0;
-	Colorf ir1;
-	Colorf ir2;
-
-
-	Eigen::Vector3f p0;
-	Eigen::Vector3f d1;
-	Eigen::Vector3f d2;
-
-private:
-	Eigen::Vector3f normal;
-	// pointer = 8 byte, Vec3f = 12 byte. storing reference is stupid.
-
-	// Currently we assume non-smooth shading (normal = triangle normal).
-
-	// Lambert BRDF
-	Colorf reflectance;
-};
-
-
 // Rendering equation for surfaces:
 // radiance(pos, dir) = radiance_emit(pos, dir) + 
 //   integral(brdf(pos, dir, dir_in) * radiance(pos, -dir_in) * normal(pos).dot(dir_in)
@@ -184,7 +135,10 @@ public:
 
 	Colorf getRadiance(Ray ray);
 
-	boost::optional<Intersection> intersect(Ray ray);
+	// Return (pos, normal) of the intersection. Targets are
+	// STATIC and UI.
+	boost::optional<std::pair<Eigen::Vector3f, Eigen::Vector3f>>
+		intersectAny(Ray ray);
 private:
 	// TODO: Current process is tangled. Fix it.
 	// ideal:
@@ -199,6 +153,7 @@ private:
 	void updateLighting();
 	void updateIrradiance();
 	
+	boost::optional<Intersection> intersect(Ray ray);
 
 	// Approximate integral(irradiance(pos, -dir_in) * normal(pos).dot(dir_in) for dir_in in sphere)
 	// return value: radiance

@@ -182,16 +182,21 @@ CursorScript::~CursorScript() {
 
 void CursorScript::step(float dt, Object& object) {
 	Ray ray(getEyePosition(), getHeadDirection());
-	auto isect = object.scene.intersect(ray);
+	auto isect = object.scene.intersectAny(ray);
 
 	if(!isect) {
 		// TODO: hide
 	} else {
-		auto pos = std::get<1>(*isect);
-		auto normal = std::get<2>(*isect);
+		auto pos = isect->first;
+		auto trans = createBasis(isect->second);
+
 
 		object.center = OVR::Vector3f(pos.x(), pos.y(), pos.z());
 	}
+}
+
+Eigen::Matrix3f CursorScript::createBasis(Eigen::Vector3f normal) {
+	return Eigen::Matrix3f::Identity();
 }
 
 }  // namespace
