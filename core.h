@@ -118,6 +118,8 @@ private:
 
 	std::shared_ptr<Geometry> proxy;
 	std::shared_ptr<Texture> pre_buffer;
+
+	double t_last_update;
 };
 
 }  // namespace

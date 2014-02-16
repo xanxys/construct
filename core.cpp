@@ -31,7 +31,8 @@ Eigen::Vector3f projectSphere(float theta, float phi) {
 
 Core::Core(bool windowed) :
 	avatar_foot_pos(Eigen::Vector3f::Zero()),
-	max_luminance(150) {
+	max_luminance(150),
+	t_last_update(0) {
 
 	init(windowed ? DisplayMode::WINDOW : DisplayMode::HMD_FRAMELESS);
 	v8::V8::Initialize();
@@ -832,9 +833,23 @@ void Core::render() {
 void Core::run() {
 	try {
 		while(!glfwWindowShouldClose(window)) {
+			const double step_t0 = glfwGetTime();
 			step();
+			const double step_dt = glfwGetTime() - step_t0;
+			if(step_dt > 1.0 / 60) {
+				std::cout << "Warn: too much time in step()" << step_dt << std::endl;
+			}
+
+
 			render();
 			glfwSwapBuffers(window);
+			const double t = glfwGetTime();
+			const double dt = t - t_last_update;
+			if(dt > 1.5 / 60) {
+				std::cout << "Missed frame: latency=" << dt << " sec" <<std::endl;
+			}
+			t_last_update = t;
+
 			glfwPollEvents();
 		}
 		

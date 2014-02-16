@@ -28,7 +28,7 @@ boost::optional<Intersection> Triangle::intersect(Ray ray) {
 	}
 				
 	Eigen::Vector3f s2 = s.cross(d1);
-	float b = ray.dir.dot(s2) * div_inv;
+	const float b = ray.dir.dot(s2) * div_inv;
 		
 	if(b < 0 || a + b > 1) {
 		return boost::optional<Intersection>();

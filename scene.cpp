@@ -153,6 +153,7 @@ void Scene::updateGeometry() {
 
 		// Extract tris from PosCol format.
 		auto& data = pair.second->geometry->getData();
+		assert(data.size() % (6 * 3) == 0);
 		for(int i = 0; i < data.size() / (6 * 3); i++) {
 			std::array<Eigen::Vector3f, 3> vertex;
 			for(int j = 0; j < 3; j++) {
@@ -177,6 +178,7 @@ void Scene::updateUIGeometry() {
 
 		// Extract tris from PosUV format.
 		auto& data = pair.second->geometry->getData();
+		assert(data.size() % (5 * 3) == 0);
 		for(int i = 0; i < data.size() / (5 * 3); i++) {
 			std::array<Eigen::Vector3f, 3> vertex;
 			for(int j = 0; j < 3; j++) {
@@ -192,8 +194,12 @@ void Scene::updateUIGeometry() {
 }
 
 void Scene::updateLighting() {
+	if(tris.empty()) {
+		return;
+	}
+	
 	// TODO: use proper multi-threading.
-	const int max_tris = 20;
+	const int max_tris = 5;
 	
 	// assuming more than 5 samples.
 	const float blend_rate = 0.5;
