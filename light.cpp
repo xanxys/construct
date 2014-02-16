@@ -2,9 +2,6 @@
 
 namespace construct {
 
-const float pi = 3.14159265359;
-
-
 Ray::Ray(Eigen::Vector3f org, Eigen::Vector3f dir) : org(org), dir(dir) {
 }
 

@@ -78,7 +78,7 @@ void LocomotionScript::step(float dt, Object& object) {
 	setMovingDirection(Eigen::Vector3f::Zero());
 
 	const auto center_u = getEyePosition() - Eigen::Vector3f(0, 0, 1.4 - 0.05);
-	object.center = OVR::Vector3f(center_u.x(), center_u.y(), center_u.z());
+	object.setLocalToWorld(Transform3f(Eigen::Translation<float, 3>(center_u)));
 
 	auto dir_pre = getHeadDirection();
 
@@ -187,16 +187,23 @@ void CursorScript::step(float dt, Object& object) {
 	if(!isect) {
 		// TODO: hide
 	} else {
-		auto pos = isect->first;
-		auto trans = createBasis(isect->second);
-
-
-		object.center = OVR::Vector3f(pos.x(), pos.y(), pos.z());
+		object.setLocalToWorld(
+			Eigen::Translation<float, 3>(isect->first + isect->second * 0.05) *
+			createBasis(isect->second));
 	}
 }
 
 Eigen::Matrix3f CursorScript::createBasis(Eigen::Vector3f normal) {
-	return Eigen::Matrix3f::Identity();
+	auto seed_y = Eigen::Vector3f::UnitX();
+
+	auto axis_x = seed_y.cross(normal).normalized();
+	auto axis_y = normal.cross(axis_x).normalized();
+
+	Eigen::Matrix3f m;
+	m.col(0) = axis_x;
+	m.col(1) = axis_y;
+	m.col(2) = normal;
+	return m;
 }
 
 }  // namespace

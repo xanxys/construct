@@ -7,8 +7,6 @@
 
 namespace construct {
 
-const float pi = 3.14159265359;
-
 Sky::Sky() {
 	turbidity = 10;
 

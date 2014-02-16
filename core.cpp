@@ -16,7 +16,7 @@
 
 namespace construct {
 
-const float pi = 3.14159265359;
+
 
 Eigen::Vector3f ovrToEigen(OVR::Vector3f v) {
 	return Eigen::Vector3f(v.x, v.y, v.z);
@@ -93,7 +93,7 @@ void Core::attachCursor(Object& object) {
 	Eigen::Matrix3f rot;
 	rot = Eigen::AngleAxisf(-0.5 * 3.1415, Eigen::Vector3f::UnitX());
 	object.geometry = generateTexQuadGeometry(0.1, 0.1,
-		Eigen::Vector3f(0, 0, 0.05), rot);
+		Eigen::Vector3f::Zero(), rot);
 	object.texture = texture;
 	
 	object.nscript.reset(new CursorScript(

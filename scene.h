@@ -10,19 +10,20 @@
 
 #include <boost/optional.hpp>
 #include <eigen3/Eigen/Dense>
+#include <eigen3/Eigen/Geometry>
 #include <json/json.h>
 #include <GL/glew.h>
 #include <glfw3.h>
 
 #include "gl.h"
 #include "light.h"
-#include "OVR.h"
 #include "scene.h"
 #include "sky.h"
 #include "util.h"
 
 namespace construct {
 
+typedef Eigen::Transform<float, 3, Eigen::Affine> Transform3f;
 typedef uint64_t ObjectId;
 
 class NativeScript;
@@ -65,8 +66,6 @@ class Object {
 public:
 	Object(Scene& scene);
 
-	OVR::Vector3f center;
-
 	bool use_blend;
 
 	// These details should not belong to Object. Instead,
@@ -86,8 +85,14 @@ public:
 	Scene& scene;
 
 	ObjectType type;
+
+	void setLocalToWorld(Transform3f trans);
+	Transform3f getLocalToWorld();
 private:
 	std::vector<Json::Value> queue;
+
+	// Only used when type == UI.
+	Transform3f local_to_world;
 };
 
 

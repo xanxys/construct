@@ -2,9 +2,7 @@
 
 namespace construct {
 
-const float pi = 3.14159265359;
-
-Object::Object(Scene& scene) : scene(scene), use_blend(false), center({0, 0, 0}) {
+Object::Object(Scene& scene) : scene(scene), use_blend(false) {
 }
 
 void Object::addMessage(Json::Value value) {
@@ -21,7 +19,17 @@ boost::optional<Json::Value> Object::getMessage() {
 	}
 }
 
+void Object::setLocalToWorld(Transform3f trans) {
+	local_to_world = trans;
+}
 
+Transform3f Object::getLocalToWorld() {
+	if(type != ObjectType::UI) {
+		throw "Non UI component doesn't have tranform";
+	}
+
+	return local_to_world;
+}
 
 
 NativeScript::NativeScript() {
@@ -253,22 +261,20 @@ void Scene::render() {
 
 		object->shader->use();
 		if(object->type == ObjectType::UI) {
-			OVR::Matrix4f m = 
-				OVR::Matrix4f::Translation(object->center);
+			Eigen::Matrix<float, 4, 4, Eigen::RowMajor> m =
+				object->getLocalToWorld().matrix();
 
 			object->texture->useIn(0);
 			object->shader->setUniform("texture", 0);
 			object->shader->setUniform("luminance", 25.0f);
-			object->shader->setUniformMat4("local_to_world", &m.M[0][0]);
+			object->shader->setUniformMat4("local_to_world", m.data());
 		} else if(object->type == ObjectType::SKY) {
-			// TODO: Remove this, since it should be always Identity.
-			OVR::Matrix4f m = 
-				OVR::Matrix4f::Translation(object->center);
-
+			Eigen::Matrix<float, 4, 4, Eigen::RowMajor> m =
+				Eigen::Matrix4f::Identity();
 			object->texture->useIn(0);
 			object->shader->setUniform("texture", 0);
 			object->shader->setUniform("luminance", 1.0f);
-			object->shader->setUniformMat4("local_to_world", &m.M[0][0]);
+			object->shader->setUniformMat4("local_to_world", m.data());
 		}
 		object->geometry->render();
 
