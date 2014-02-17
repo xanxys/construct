@@ -70,9 +70,8 @@ protected:
 
 	void adaptEyes();
 
-	// objects
+	// special objects
 	void attachSky(Object& object);
-	Object& attachTextQuadAt(Object& object, std::string text, float height, float dx, float dy, float dz);
 	void attachLocomotionRing(Object& object);
 	void attachCursor(Object& object);
 	void attachCuboid(Object& object, Eigen::Vector3f size, Eigen::Vector3f pos, Eigen::Vector3f color = {0.9, 0.8, 0.8});

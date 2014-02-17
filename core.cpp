@@ -345,41 +345,6 @@ void Core::attachLocomotionRing(Object& object) {
 	object.use_blend = false;
 }
 
-Object& Core::attachTextQuadAt(Object& object, std::string text, float height_meter, float dx, float dy, float dz) {
-	const float aspect_estimate = text.size() / 3.0f;  // assuming japanese letters in UTF-8.
-	const float px_per_meter = 500;
-
-	const float width_meter = height_meter * aspect_estimate;
-
-	// Create texture with string.
-	const int width_px = px_per_meter * width_meter;
-	const int height_px = px_per_meter * height_meter;
-
-	auto surf = cairo_image_surface_create(CAIRO_FORMAT_ARGB32, width_px, height_px);
-	auto c_context = cairo_create(surf);
-
-	cairo_select_font_face(c_context, "monospace", CAIRO_FONT_SLANT_NORMAL, CAIRO_FONT_WEIGHT_NORMAL);
-	cairo_set_source_rgb(c_context, 1, 1, 1);
-
-	cairo_rectangle(c_context, 0, 0, 10, 10);
-	cairo_fill(c_context);
-
-	cairo_set_font_size(c_context, 40);
-	cairo_translate(c_context, 10, 0.8 * height_px);
-	cairo_show_text(c_context, text.c_str());
-	cairo_destroy(c_context);
-	auto texture = createTextureFromSurface(surf);
-
-	object.type = ObjectType::UI;
-	object.geometry = generateTexQuadGeometry(width_meter, height_meter,
-		Eigen::Vector3f(dx, dy, dz), Eigen::Matrix3f::Identity());
-	object.texture = texture;
-	object.use_blend = true;
-	object.nscript.reset(new TextLabelScript(surf));
-
-	return object;
-}
-
 void Core::enableExtensions() {
 	GLenum err = glewInit();
 	if(GLEW_OK != err) {
