@@ -143,6 +143,9 @@ public:
 	// STATIC and UI.
 	boost::optional<Intersection> intersectAny(Ray ray);
 private:
+	// hackish way to solve transparency problem.
+	void renderObject(Object& object, const float* projection);
+
 	// TODO: Current process is tangled. Fix it.
 	// ideal:
 	//   Object.triangles ->

@@ -300,6 +300,7 @@ Colorf Scene::collectIrradiance(Eigen::Vector3f pos, Eigen::Vector3f normal) {
 		Ray ray(pos + normal * 1e-5, dir);
 		accum += getRadiance(ray) * normal.dot(dir);
 	}
+	assert(std::isfinite(accum[0]) && std::isfinite(accum[1]) && std::isfinite(accum[2]));
 	return accum / n_samples;
 }
 
@@ -311,47 +312,61 @@ void Scene::render(const float* projection) {
 	for(auto& pair : objects) {
 		auto& object = pair.second;
 
-		if(object->use_blend) {
-			glEnable(GL_BLEND);
-			
-			// additive blending
-			// glBlendFunc(GL_SRC_ALPHA, GL_ONE);
-
-			// alpha blend
-			glBlendFunc(GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA);
+		if(object->type != UI_CURSOR) {
+			renderObject(*object, projection);
 		}
+	}
 
-		if(object->type == ObjectType::UI || object->type == UI_CURSOR) {
-			Eigen::Matrix<float, 4, 4, Eigen::RowMajor> m =
-				object->getLocalToWorld().matrix();
+	for(auto& pair : objects) {
+		auto& object = pair.second;
 
-			object->texture->useIn(0);
-			texture_shader->use();
-			texture_shader->setUniformMat4("world_to_screen", projection);
-			texture_shader->setUniform("texture", 0);
-			texture_shader->setUniform("luminance", 25.0f);
-			texture_shader->setUniformMat4("local_to_world", m.data());
-		} else if(object->type == ObjectType::SKY) {
-			Eigen::Matrix<float, 4, 4, Eigen::RowMajor> m =
-				Eigen::Matrix4f::Identity();
-
-			object->texture->useIn(0);
-			texture_shader->use();
-			texture_shader->setUniformMat4("world_to_screen", projection);
-			texture_shader->setUniform("texture", 0);
-			texture_shader->setUniform("luminance", 1.0f);
-			texture_shader->setUniformMat4("local_to_world", m.data());
-		} else if(object->type == ObjectType::STATIC) {
-			standard_shader->use();
-			standard_shader->setUniformMat4("world_to_screen", projection);
-		} else {
-			throw "Unknown ObjectType";
+		if(object->type == UI_CURSOR) {
+			renderObject(*object, projection);
 		}
-		object->geometry->render();
+	}
+}
 
-		if(object->use_blend) {
-			glDisable(GL_BLEND);
-		}
+void Scene::renderObject(Object& object, const float* projection) {
+	if(object.use_blend) {
+		glEnable(GL_BLEND);
+		
+		// additive blending
+		// glBlendFunc(GL_SRC_ALPHA, GL_ONE);
+
+		// alpha blend
+		glBlendFunc(GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA);
+	}
+
+	if(object.type == ObjectType::UI || object.type == UI_CURSOR) {
+		Eigen::Matrix<float, 4, 4, Eigen::RowMajor> m =
+			object.getLocalToWorld().matrix();
+
+		object.texture->useIn(0);
+		texture_shader->use();
+		texture_shader->setUniformMat4("world_to_screen", projection);
+		texture_shader->setUniform("texture", 0);
+		texture_shader->setUniform("luminance", 25.0f);
+		texture_shader->setUniformMat4("local_to_world", m.data());
+	} else if(object.type == ObjectType::SKY) {
+		Eigen::Matrix<float, 4, 4, Eigen::RowMajor> m =
+			Eigen::Matrix4f::Identity();
+
+		object.texture->useIn(0);
+		texture_shader->use();
+		texture_shader->setUniformMat4("world_to_screen", projection);
+		texture_shader->setUniform("texture", 0);
+		texture_shader->setUniform("luminance", 1.0f);
+		texture_shader->setUniformMat4("local_to_world", m.data());
+	} else if(object.type == ObjectType::STATIC) {
+		standard_shader->use();
+		standard_shader->setUniformMat4("world_to_screen", projection);
+	} else {
+		throw "Unknown ObjectType";
+	}
+	object.geometry->render();
+
+	if(object.use_blend) {
+		glDisable(GL_BLEND);
 	}
 }
 

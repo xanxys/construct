@@ -1,6 +1,7 @@
 #include "core.h"
 
 #include <array>
+#include <cmath>
 #include <fstream>
 #include <functional>
 #include <iostream>
@@ -15,8 +16,6 @@
 #include "util.h"
 
 namespace construct {
-
-
 
 Eigen::Vector3f ovrToEigen(OVR::Vector3f v) {
 	return Eigen::Vector3f(v.x, v.y, v.z);
@@ -37,6 +36,7 @@ Core::Core(bool windowed) :
 	init(windowed ? DisplayMode::WINDOW : DisplayMode::HMD_FRAMELESS);
 	v8::V8::Initialize();
 
+	/*
 	v8::Isolate* isolate = v8::Isolate::GetCurrent();
 	v8::HandleScope handle_scope;
 
@@ -55,6 +55,7 @@ Core::Core(bool windowed) :
 	v8::String::AsciiValue ascii(result);
 
 	std::cout << "V8 says: " << *ascii << std::endl;
+	*/
 
 	// Create scene
 	scene.reset(new Scene());
@@ -153,7 +154,7 @@ void Core::adaptEyes() {
 	const float latency = 0.25;
 	const float frame_count = 60 * latency;
 
-	const float lum = estimateMaxRadiance();
+	const float lum = std::max(0.01f, estimateMaxRadiance());
 
 	// Blend ratio s.t. 90% complete is achieved with specified latency.
 	// in log space!
@@ -676,6 +677,7 @@ void Core::render() {
 		useBackBuffer();
 	}
 	glClearColor(0, 0, 0, 1);
+	glClearDepth(1);
 	glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
 	glEnable(GL_DEPTH_TEST);
 
@@ -739,8 +741,12 @@ void Core::run() {
 				std::cout << "Warn: too much time in step()" << step_dt << std::endl;
 			}
 
-
 			render();
+			auto error = glGetError();
+			if(error != GL_NO_ERROR) {
+				std::cout << "error: OpenGL error: " << error << std::endl;
+			}
+
 			glfwSwapBuffers(window);
 			const double t = glfwGetTime();
 			const double dt = t - t_last_update;
