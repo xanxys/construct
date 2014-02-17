@@ -3,8 +3,9 @@
 namespace construct {
 
 Intersection::Intersection(
-	float t, Eigen::Vector3f pos, Eigen::Vector3f n, Colorf radiance, ObjectId id) :
-	t(t), position(pos), normal(n), radiance(radiance), id(id) {
+	float t, Eigen::Vector3f pos, Eigen::Vector3f n, Eigen::Vector2f uv,
+	Colorf radiance, ObjectId id) :
+	t(t), position(pos), normal(n), uv(uv), radiance(radiance), id(id) {
 }
 
 
@@ -18,8 +19,15 @@ Eigen::Vector3f Ray::at(float t) {
 
 Triangle::Triangle(Eigen::Vector3f p0, Eigen::Vector3f p1, Eigen::Vector3f p2) :
 	p0(p0), d1(p1 - p0), d2(p2 - p0), normal(d1.cross(d2).normalized()),
-	ir0({0, 0, 0}), ir1({0, 0, 0}), ir2({0, 0, 0}) {
+	ir0({0, 0, 0}), ir1({0, 0, 0}), ir2({0, 0, 0}),
+	uv0({0, 0}), uv1({0, 0}), uv2({0, 0}) {
 	reflectance = Eigen::Vector3f(0.8, 0.8, 0.9);
+}
+
+void Triangle::setUV(Eigen::Vector2f uv0, Eigen::Vector2f uv1, Eigen::Vector2f uv2) {
+	this->uv0 = uv0;
+	this->uv1 = uv1;
+	this->uv2 = uv2;
 }
 
 boost::optional<Intersection> Triangle::intersect(Ray ray) {
@@ -53,6 +61,7 @@ boost::optional<Intersection> Triangle::intersect(Ray ray) {
 		t,
 		ray.at(t),
 		normal,
+		(1 - a - b) * uv0 + a * uv1 + b * uv2,
 		(1 - a - b) * ir0 + a * ir1 + b * ir2,
 		attribute));
 }

@@ -68,16 +68,14 @@ void Core::addInitialObjects() {
 
 	addBuilding();
 
-	// Prepare avatar things
+	// Prepare avatar UIs.
 	attachLocomotionRing(scene->unsafeGet(scene->add()));
 
-	// Prepare dasher things
+	// Prepare example UIs.
 	attachTextQuadAt(scene->unsafeGet(scene->add()), "Input    ", 0.1, 0, 1, 1.8);
 
 	ObjectId input_object = scene->add();
 	attachTextQuadAt(scene->unsafeGet(input_object), "------------------------", 0.12, 0, 1, 1.0);	
-
-	attachDasherQuadAt(scene->add(), input_object, 0.5, 0, 0.9, 1.4);
 
 	attachCursor(scene->unsafeGet(scene->add()));
 }
@@ -276,34 +274,7 @@ void Core::attachCuboid(Object& object,
 	object.geometry = Geometry::createPosColor(vertex.rows(), vertex.data());
 }
 
-std::shared_ptr<Geometry> Core::generateTexQuadGeometry(
-	float width, float height, Eigen::Vector3f pos, Eigen::Matrix3f rot) {
 
-	Eigen::Matrix<float, 6, 3 + 2, Eigen::RowMajor> vertex;
-
-	GLfloat vertex_pos_uv[] = {
-		-1.0f, 0, -1.0f, 0, 1,
-		1.0f, 0, 1.0f, 1, 0,
-		-1.0f, 0, 1.0f, 0, 0,
-
-		 1.0f, 0, 1.0f, 1, 0,
-		 -1.0f, 0, -1.0f, 0, 1,
-		 1.0f, 0, -1.0f, 1, 1,
-	};
-
-	for(int i = 0; i < 6; i++) {
-		Eigen::Vector3f p_local(
-			vertex_pos_uv[i * 5 + 0] * width / 2,
-			vertex_pos_uv[i * 5 + 1],
-			vertex_pos_uv[i * 5 + 2] * height / 2);
-
-		vertex.row(i).head(3) = rot * p_local + pos;
-		vertex.row(i).tail(2) = Eigen::Vector2f(
-			vertex_pos_uv[i * 5 + 3], vertex_pos_uv[i * 5 + 4]);
-	}
-
-	return Geometry::createPosUV(vertex.rows(), vertex.data());
-}
 
 void Core::attachSky(Object& object) {
 	// UV sphere for Equirectangular mapping.
@@ -369,38 +340,6 @@ void Core::attachLocomotionRing(Object& object) {
 	object.use_blend = false;
 }
 
-void Core::attachDasherQuadAt(ObjectId widget, ObjectId label, float height_meter, float dx, float dy, float dz) {
-	Object& object = scene->unsafeGet(widget);
-
-	const float aspect_estimate = 1.0;
-	const float px_per_meter = 500;
-
-	const float width_meter = height_meter * aspect_estimate;
-
-	// Create texture with string.
-	const int width_px = px_per_meter * width_meter;
-	const int height_px = px_per_meter * height_meter;
-
-	cairo_surface_t* dasher_surface = cairo_image_surface_create(CAIRO_FORMAT_ARGB32, width_px, height_px);
-	auto c_context = cairo_create(dasher_surface);
-	cairo_set_source_rgb(c_context, 1, 1, 1);
-	cairo_paint(c_context);
-	cairo_destroy(c_context);
-	auto texture = createTextureFromSurface(dasher_surface);
-
-	// Create geometry with texture.
-	object.type = ObjectType::UI;
-	object.geometry = generateTexQuadGeometry(width_meter, height_meter,
-		Eigen::Vector3f(dx, dy, dz), Eigen::Matrix3f::Identity());
-	object.texture = texture;
-	object.use_blend = true;
-	object.nscript.reset(new DasherScript(
-		std::bind(std::mem_fn(&Core::getHeadDirection), this),
-		dasher_surface,
-		label,
-		widget));
-}
-
 void Core::attachTextQuadAt(Object& object, std::string text, float height_meter, float dx, float dy, float dz) {
 	const float aspect_estimate = text.size() / 3.0f;  // assuming japanese letters in UTF-8.
 	const float px_per_meter = 500;
@@ -433,33 +372,6 @@ void Core::attachTextQuadAt(Object& object, std::string text, float height_meter
 	object.use_blend = true;
 	object.nscript.reset(new TextLabelScript(surf));
 }
-
-std::shared_ptr<Texture> Core::createTextureFromSurface(cairo_surface_t* surface) {
-	// Convert cairo format to GL format.
-	GLint gl_internal_format;
-	GLint gl_format;
-	const cairo_format_t format = cairo_image_surface_get_format(surface);
-	if(format == CAIRO_FORMAT_ARGB32) {
-		gl_internal_format = GL_RGBA;
-		gl_format = GL_BGRA;
-	} else if(format == CAIRO_FORMAT_RGB24) {
-		gl_internal_format = GL_RGB;
-		gl_format = GL_BGR;
-	} else {
-		throw "Unsupported surface type";
-	}
-
-	// Create texture
-	const int width = cairo_image_surface_get_width(surface);
-	const int height = cairo_image_surface_get_height(surface);
-
-	auto texture = Texture::create(width, height);
-	texture->useIn();
-	glTexImage2D(GL_TEXTURE_2D, 0, gl_internal_format, width, height, 0, gl_format, GL_UNSIGNED_BYTE, cairo_image_surface_get_data(surface));
-
-	return texture;
-}
-
 
 void Core::enableExtensions() {
 	GLenum err = glewInit();

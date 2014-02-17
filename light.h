@@ -21,7 +21,8 @@ typedef uint64_t ObjectId;
 class Intersection {
 public:
 	Intersection(float t,
-		Eigen::Vector3f pos, Eigen::Vector3f n, Colorf radiance,
+		Eigen::Vector3f pos, Eigen::Vector3f n, Eigen::Vector2f uv,
+		Colorf radiance,
 		ObjectId id);
 
 	// ray info
@@ -30,6 +31,7 @@ public:
 	// surface info
 	Eigen::Vector3f position;
 	Eigen::Vector3f normal;
+	Eigen::Vector2f uv;
 	Colorf radiance;
 
 	// object info
@@ -53,6 +55,8 @@ public:
 	Triangle(Eigen::Vector3f p0, Eigen::Vector3f p1, Eigen::Vector3f p2);
 	boost::optional<Intersection> intersect(Ray ray);
 
+	void setUV(Eigen::Vector2f uv0, Eigen::Vector2f uv1, Eigen::Vector2f uv2);
+
 	Eigen::Vector3f getVertexPos(int i);
 	Eigen::Vector3f getNormal();
 
@@ -69,13 +73,16 @@ public:
 	Colorf ir1;
 	Colorf ir2;
 
-
 	Eigen::Vector3f p0;
 	Eigen::Vector3f d1;
 	Eigen::Vector3f d2;
 
 	ObjectId attribute;
 private:
+	Eigen::Vector2f uv0;
+	Eigen::Vector2f uv1;
+	Eigen::Vector2f uv2;
+
 	Eigen::Vector3f normal;
 	// pointer = 8 byte, Vec3f = 12 byte. storing reference is stupid.
 

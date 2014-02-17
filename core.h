@@ -71,20 +71,11 @@ protected:
 	void adaptEyes();
 
 	// objects
-	void attachSky(Object& object);	
-	void attachDasherQuadAt(ObjectId widget, ObjectId label, float height, float dx, float dy, float dz);
+	void attachSky(Object& object);
 	void attachTextQuadAt(Object& object, std::string text, float height, float dx, float dy, float dz);
 	void attachLocomotionRing(Object& object);
 	void attachCursor(Object& object);
-
-	// default orientation is to surface look "normal" to Y- direction, with size
-	// [-width/2, width/2] * [0,0] * [-height/2, height/2].
-	std::shared_ptr<Geometry> generateTexQuadGeometry(
-		float width, float height, Eigen::Vector3f pos, Eigen::Matrix3f rot);
-
 	void attachCuboid(Object& object, Eigen::Vector3f size, Eigen::Vector3f pos, Eigen::Vector3f color = {0.9, 0.8, 0.8});
-
-	std::shared_ptr<Texture> createTextureFromSurface(cairo_surface_t* surface);
 private:
 	// avatar things.
 	float max_luminance;

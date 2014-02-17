@@ -2,12 +2,90 @@
 
 namespace construct {
 
+std::shared_ptr<Texture> createTextureFromSurface(cairo_surface_t* surface) {
+	// Convert cairo format to GL format.
+	GLint gl_internal_format;
+	GLint gl_format;
+	const cairo_format_t format = cairo_image_surface_get_format(surface);
+	if(format == CAIRO_FORMAT_ARGB32) {
+		gl_internal_format = GL_RGBA;
+		gl_format = GL_BGRA;
+	} else if(format == CAIRO_FORMAT_RGB24) {
+		gl_internal_format = GL_RGB;
+		gl_format = GL_BGR;
+	} else {
+		throw "Unsupported surface type";
+	}
+
+	// Create texture
+	const int width = cairo_image_surface_get_width(surface);
+	const int height = cairo_image_surface_get_height(surface);
+
+	auto texture = Texture::create(width, height);
+	texture->useIn();
+	glTexImage2D(GL_TEXTURE_2D, 0, gl_internal_format, width, height, 0, gl_format, GL_UNSIGNED_BYTE, cairo_image_surface_get_data(surface));
+
+	return texture;
+}
+
+std::shared_ptr<Geometry> generateTexQuadGeometry(
+	float width, float height, Eigen::Vector3f pos, Eigen::Matrix3f rot) {
+
+	Eigen::Matrix<float, 6, 3 + 2, Eigen::RowMajor> vertex;
+
+	GLfloat vertex_pos_uv[] = {
+		-1.0f, 0, -1.0f, 0, 1,
+		1.0f, 0, 1.0f, 1, 0,
+		-1.0f, 0, 1.0f, 0, 0,
+
+		 1.0f, 0, 1.0f, 1, 0,
+		 -1.0f, 0, -1.0f, 0, 1,
+		 1.0f, 0, -1.0f, 1, 1,
+	};
+
+	for(int i = 0; i < 6; i++) {
+		Eigen::Vector3f p_local(
+			vertex_pos_uv[i * 5 + 0] * width / 2,
+			vertex_pos_uv[i * 5 + 1],
+			vertex_pos_uv[i * 5 + 2] * height / 2);
+
+		vertex.row(i).head(3) = rot * p_local + pos;
+		vertex.row(i).tail(2) = Eigen::Vector2f(
+			vertex_pos_uv[i * 5 + 3], vertex_pos_uv[i * 5 + 4]);
+	}
+
+	return Geometry::createPosUV(vertex.rows(), vertex.data());
+}
+
+void attachDasherQuadAt(Object& object, ObjectId label, float height_meter, float dx, float dy, float dz) {
+	const float aspect_estimate = 1.0;
+	const float px_per_meter = 500;
+
+	const float width_meter = height_meter * aspect_estimate;
+
+	// Create texture with string.
+	const int width_px = px_per_meter * width_meter;
+	const int height_px = px_per_meter * height_meter;
+
+	cairo_surface_t* dasher_surface = cairo_image_surface_create(CAIRO_FORMAT_ARGB32, width_px, height_px);
+	auto c_context = cairo_create(dasher_surface);
+	cairo_set_source_rgb(c_context, 1, 1, 1);
+	cairo_paint(c_context);
+	cairo_destroy(c_context);
+	auto texture = createTextureFromSurface(dasher_surface);
+
+	// Create geometry with texture.
+	object.type = ObjectType::UI;
+	object.geometry = generateTexQuadGeometry(width_meter, height_meter,
+		Eigen::Vector3f(dx, dy, dz), Eigen::Matrix3f::Identity());
+	object.texture = texture;
+	object.use_blend = true;
+	object.nscript.reset(new DasherScript(dasher_surface, label));
+}
+
 DasherScript::DasherScript(
-	std::function<OVR::Vector3f()> getHeadDirection,
-	cairo_surface_t* surface, ObjectId label, ObjectId element) :
-	getHeadDirection(getHeadDirection), dasher_surface(surface),
-	label(label), element(element),
-	disabled(false) {
+	cairo_surface_t* surface, ObjectId label) :
+	dasher_surface(surface), label(label), disabled(false) {
 }
 
 DasherScript::~DasherScript() {
@@ -19,20 +97,29 @@ void DasherScript::step(float dt, Object& object) {
 		return;
 	}
 
-	auto dir = getHeadDirection();
-	if(std::abs(dir.x) > 0.6 || std::abs(dir.z) > 0.6) {
-		object.scene.deleteObject(element);
-		disabled = true;
-		return;
+	while(true) {
+		auto message = object.getMessage();
+		if(!message) {
+			break;
+		}
+
+		if(message->isObject()) {
+			if((*message)["type"] == "stare") {
+				handleStare(object, *message);
+			}
+		}
 	}
+}
 
-
-	dasher.update(1.0 / 60, -dir.z * 10, -dir.x * 10);
+void DasherScript::handleStare(Object& object, Json::Value message) {
+	dasher.update(1.0 / 30,
+		10 * (message["v"].asFloat() - 0.5),
+		10 * (0.5 - message["u"].asFloat()));
 
 	auto ctx = cairo_create(dasher_surface);
 	dasher.visualize(ctx);
 
-	// center
+	// center dot
 	cairo_new_path(ctx);
 	cairo_arc(ctx, 125, 125, 1, 0, 2 * pi);
 	cairo_set_source_rgb(ctx, 1, 0, 0);
@@ -46,7 +133,6 @@ void DasherScript::step(float dt, Object& object) {
 		cairo_image_surface_get_height(dasher_surface),
 		0, GL_BGRA, GL_UNSIGNED_BYTE,
 		cairo_image_surface_get_data(dasher_surface));
-
 
 	object.scene.sendMessage(label, Json::Value(dasher.getFixed()));
 }
@@ -171,11 +257,8 @@ void TextLabelScript::step(float dt, Object& object) {
 
 	if(stare_count >= 15 && !editing) {
 		editing = true;
-
-		// show dasher
-		//object.id
-		// attachDasher
-		std::cout << "TODO: show dasher" << std::endl;
+		attachDasherQuadAt(object.scene.unsafeGet(object.scene.add()),
+			object.id, 0.5, 0, 0.9, 1.4);
 	}
 }
 
@@ -203,6 +286,8 @@ void CursorScript::step(float dt, Object& object) {
 		// Send message to the object.
 		Json::Value message;
 		message["type"] = "stare";
+		message["u"] = isect->uv[0];
+		message["v"] = isect->uv[1];
 		object.scene.sendMessage(isect->id, message);
 
 		// Move cursor.

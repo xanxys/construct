@@ -177,15 +177,20 @@ void Scene::updateUIGeometry() {
 		assert(data.size() % (5 * 3) == 0);
 		for(int i = 0; i < data.size() / (5 * 3); i++) {
 			std::array<Eigen::Vector3f, 3> vertex;
+			std::array<Eigen::Vector2f, 3> uvs;
 			for(int j = 0; j < 3; j++) {
 				vertex[j] = trans * Eigen::Vector3f(
 					data[5 * (3 * i + j) + 0],
 					data[5 * (3 * i + j) + 1],
 					data[5 * (3 * i + j) + 2]);
-				//std::cout << "UI vert:" << vertex[j] << std::endl;
+
+				uvs[j] = Eigen::Vector2f(
+					data[5 * (3 * i + j) + 3],
+					data[5 * (3 * i + j) + 4]);
 			}
 			Triangle tri(vertex[0], vertex[1], vertex[2]);
 			tri.attribute = pair.first;
+			tri.setUV(uvs[0], uvs[1], uvs[2]);
 			tris_ui.push_back(tri);
 		}
 	}
