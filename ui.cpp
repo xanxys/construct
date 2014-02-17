@@ -57,7 +57,7 @@ std::shared_ptr<Geometry> generateTexQuadGeometry(
 	return Geometry::createPosUV(vertex.rows(), vertex.data());
 }
 
-void attachDasherQuadAt(Object& object, ObjectId label, float height_meter, float dx, float dy, float dz) {
+void attachDasherQuadAt(Object& object, ObjectId label, float height_meter) {
 	const float aspect_estimate = 1.0;
 	const float px_per_meter = 500;
 
@@ -77,7 +77,7 @@ void attachDasherQuadAt(Object& object, ObjectId label, float height_meter, floa
 	// Create geometry with texture.
 	object.type = ObjectType::UI;
 	object.geometry = generateTexQuadGeometry(width_meter, height_meter,
-		Eigen::Vector3f(dx, dy, dz), Eigen::Matrix3f::Identity());
+		Eigen::Vector3f::Zero(), Eigen::Matrix3f::Identity());
 	object.texture = texture;
 	object.use_blend = true;
 	object.nscript.reset(new DasherScript(dasher_surface, label));
@@ -85,7 +85,7 @@ void attachDasherQuadAt(Object& object, ObjectId label, float height_meter, floa
 
 DasherScript::DasherScript(
 	cairo_surface_t* surface, ObjectId label) :
-	dasher_surface(surface), label(label), disabled(false) {
+	dasher_surface(surface), label(label), disabled(false), activated(false) {
 }
 
 DasherScript::~DasherScript() {
@@ -97,6 +97,7 @@ void DasherScript::step(float dt, Object& object) {
 		return;
 	}
 
+	bool stared = false;
 	while(true) {
 		auto message = object.getMessage();
 		if(!message) {
@@ -105,9 +106,18 @@ void DasherScript::step(float dt, Object& object) {
 
 		if(message->isObject()) {
 			if((*message)["type"] == "stare") {
+				stared = true;
 				handleStare(object, *message);
 			}
 		}
+	}
+
+	// Remove once de-focused.
+	if(!activated && stared) {
+		activated = true;
+	} else if(activated && !stared) {
+		object.scene.deleteObject(object.id);
+		disabled = true;
 	}
 }
 
@@ -257,8 +267,11 @@ void TextLabelScript::step(float dt, Object& object) {
 
 	if(stare_count >= 15 && !editing) {
 		editing = true;
-		attachDasherQuadAt(object.scene.unsafeGet(object.scene.add()),
-			object.id, 0.5, 0, 0.9, 1.4);
+
+		Object& dasher = object.scene.unsafeGet(object.scene.add());
+		attachDasherQuadAt(dasher, object.id, 0.5);
+		dasher.setLocalToWorld(Transform3f(Eigen::Translation<float, 3>(
+			object.getLocalToWorld() * Eigen::Vector3f::Zero() + Eigen::Vector3f(0, 0, 0.4))));
 	}
 }
 

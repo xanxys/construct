@@ -12,6 +12,7 @@
 #include <boost/optional.hpp>
 #include <cairo/cairo.h>
 #include <eigen3/Eigen/Dense>
+#include <eigen3/Eigen/Geometry>
 #include <GL/glew.h>
 #include <glfw3.h>
 #include <json/json.h>
@@ -30,7 +31,7 @@ std::shared_ptr<Texture> createTextureFromSurface(cairo_surface_t* surface);
 std::shared_ptr<Geometry> generateTexQuadGeometry(
 	float width, float height, Eigen::Vector3f pos, Eigen::Matrix3f rot);
 
-void attachDasherQuadAt(Object& widget, ObjectId label, float height, float dx, float dy, float dz);
+void attachDasherQuadAt(Object& widget, ObjectId label, float height);
 
 class DasherScript : public NativeScript {
 public:
@@ -45,6 +46,7 @@ private:
 	Dasher dasher;
 	ObjectId label;
 	bool disabled;
+	bool activated;
 
 	cairo_surface_t* dasher_surface;
 };

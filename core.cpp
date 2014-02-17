@@ -73,10 +73,14 @@ void Core::addInitialObjects() {
 	attachLocomotionRing(scene->unsafeGet(scene->add()));
 
 	// Prepare example UIs.
-	attachTextQuadAt(scene->unsafeGet(scene->add()), "Input    ", 0.1, 0, 1, 1.8);
+	attachTextQuadAt(scene->unsafeGet(scene->add()), "Input    ", 0.1, 0, 0, 0)
+		.setLocalToWorld(Transform3f(Eigen::Translation<float, 3>(
+			Eigen::Vector3f(0, 1, 1.8))));
 
 	ObjectId input_object = scene->add();
-	attachTextQuadAt(scene->unsafeGet(input_object), "------------------------", 0.12, 0, 1, 1.0);	
+	attachTextQuadAt(scene->unsafeGet(input_object), "------------------------", 0.12, 0, 0, 0)
+		.setLocalToWorld(Transform3f(Eigen::Translation<float, 3>(
+			Eigen::Vector3f(0, 1, 1.0))));
 
 	attachCursor(scene->unsafeGet(scene->add()));
 }
@@ -341,7 +345,7 @@ void Core::attachLocomotionRing(Object& object) {
 	object.use_blend = false;
 }
 
-void Core::attachTextQuadAt(Object& object, std::string text, float height_meter, float dx, float dy, float dz) {
+Object& Core::attachTextQuadAt(Object& object, std::string text, float height_meter, float dx, float dy, float dz) {
 	const float aspect_estimate = text.size() / 3.0f;  // assuming japanese letters in UTF-8.
 	const float px_per_meter = 500;
 
@@ -372,6 +376,8 @@ void Core::attachTextQuadAt(Object& object, std::string text, float height_meter
 	object.texture = texture;
 	object.use_blend = true;
 	object.nscript.reset(new TextLabelScript(surf));
+
+	return object;
 }
 
 void Core::enableExtensions() {
