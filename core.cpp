@@ -30,6 +30,7 @@ Eigen::Vector3f projectSphere(float theta, float phi) {
 
 Core::Core(bool windowed) :
 	avatar_foot_pos(Eigen::Vector3f::Zero()),
+	avatar_move_dir(Eigen::Vector3f::UnitY()),
 	max_luminance(150),
 	t_last_update(0) {
 
