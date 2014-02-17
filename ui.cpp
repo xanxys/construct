@@ -121,7 +121,8 @@ void LocomotionScript::step(float dt, Object& object) {
 }
 
 
-TextLabelScript::TextLabelScript(cairo_surface_t* surface) : surface(surface) {
+TextLabelScript::TextLabelScript(cairo_surface_t* surface) :
+	surface(surface), editing(false), stare_count(0) {
 }
 
 TextLabelScript::~TextLabelScript() {
@@ -129,26 +130,50 @@ TextLabelScript::~TextLabelScript() {
 }
 
 void TextLabelScript::step(float dt, Object& object) {
-	auto message = object.getMessage();
-	if(message && message->isString()) {
-		const std::string text = message->asString();
+	bool stare_found = false;
+	while(true) {
+		auto message = object.getMessage();
+		if(!message) {
+			break;
+		}
 
-		auto ctx = cairo_create(surface);
-		cairo_set_source_rgb(ctx, 1, 1, 1);
-		cairo_paint(ctx);
+		if(message->isString()) {
+			const std::string text = message->asString();
 
-		cairo_set_source_rgb(ctx, 0, 0, 0);
-		cairo_set_font_size(ctx, 30);
-		cairo_translate(ctx, 10, 50);
-		cairo_show_text(ctx, text.c_str());
-		cairo_destroy(ctx);
+			auto ctx = cairo_create(surface);
+			cairo_set_source_rgb(ctx, 1, 1, 1);
+			cairo_paint(ctx);
 
-		object.texture->useIn();
-		glTexImage2D(GL_TEXTURE_2D, 0, GL_RGBA,
-			cairo_image_surface_get_width(surface),
-			cairo_image_surface_get_height(surface),
-			0, GL_BGRA, GL_UNSIGNED_BYTE,
-			cairo_image_surface_get_data(surface));
+			cairo_set_source_rgb(ctx, 0, 0, 0);
+			cairo_set_font_size(ctx, 30);
+			cairo_translate(ctx, 10, 50);
+			cairo_show_text(ctx, text.c_str());
+			cairo_destroy(ctx);
+
+			object.texture->useIn();
+			glTexImage2D(GL_TEXTURE_2D, 0, GL_RGBA,
+				cairo_image_surface_get_width(surface),
+				cairo_image_surface_get_height(surface),
+				0, GL_BGRA, GL_UNSIGNED_BYTE,
+				cairo_image_surface_get_data(surface));
+		} else if(message->isObject()) {
+			if((*message)["type"] == "stare") {
+				stare_found = true;
+			}
+		}
+	}
+
+	if(stare_found) {
+		stare_count += 1;
+	} else {
+		stare_count = 0;
+	}
+
+	if(stare_count >= 15 && !editing) {
+		editing = true;
+
+		// show dasher
+		std::cout << "TODO: show dasher" << std::endl;
 	}
 }
 

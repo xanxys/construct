@@ -72,6 +72,8 @@ public:
 
 	void step(float dt, Object& object) override;
 private:
+	int stare_count;
+	bool editing;
 	cairo_surface_t* surface;
 };
 

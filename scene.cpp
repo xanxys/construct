@@ -14,7 +14,7 @@ boost::optional<Json::Value> Object::getMessage() {
 	if(queue.empty()) {
 		return boost::optional<Json::Value>();
 	} else {
-		auto elem = queue.back();
+		Json::Value elem = queue.back();
 		queue.pop_back();
 		return boost::optional<Json::Value>(elem);
 	}
@@ -154,7 +154,9 @@ void Scene::updateGeometry() {
 					data[6 * (3 * i + j) + 1],
 					data[6 * (3 * i + j) + 2]);
 			}
-			tris.push_back(Triangle(vertex[0], vertex[1], vertex[2]));
+			Triangle tri(vertex[0], vertex[1], vertex[2]);
+			tri.attribute = pair.first;
+			tris.push_back(tri);
 		}
 	}
 }
@@ -180,7 +182,9 @@ void Scene::updateUIGeometry() {
 					data[5 * (3 * i + j) + 2]);
 				//std::cout << "UI vert:" << vertex[j] << std::endl;
 			}
-			tris_ui.push_back(Triangle(vertex[0], vertex[1], vertex[2]));
+			Triangle tri(vertex[0], vertex[1], vertex[2]);
+			tri.attribute = pair.first;
+			tris_ui.push_back(tri);
 		}
 	}
 }
