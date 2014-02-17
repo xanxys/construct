@@ -61,19 +61,24 @@ protected:
 	Eigen::Vector3f getFootPosition();
 	Eigen::Vector3f getEyePosition();
 	OVR::Vector3f getHeadDirection();
-
 	Eigen::Vector3f getViewUp();
 	Eigen::Vector3f getViewRight();
 	Eigen::Vector3f getViewCenter();
 	void setMovingDirection(Eigen::Vector3f dir);
-	float estimateMaxRadiance();
 
+	float estimateMaxRadiance();
 	void adaptEyes();
+
+	// system
+	Json::Value getStat();
 
 	// special objects
 	void attachSky(Object& object);
-	void attachLocomotionRing(Object& object);
-	void attachCursor(Object& object);
+
+	Object& attachLocomotionRing(Object& object);
+	Object& attachCursor(Object& object);
+	Object& attachUserMenu(Object& object);
+
 	void attachCuboid(Object& object, Eigen::Vector3f size, Eigen::Vector3f pos, Eigen::Vector3f color = {0.9, 0.8, 0.8});
 private:
 	// avatar things.

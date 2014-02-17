@@ -1,6 +1,52 @@
 #include "ui.h"
 
+#include <boost/algorithm/string.hpp>
+
 namespace construct {
+
+
+UserMenuScript::UserMenuScript(std::function<Json::Value()> getStat,
+	cairo_surface_t* surface) :
+	getStat(getStat), surface(surface) {
+}
+
+UserMenuScript::~UserMenuScript() {
+	cairo_surface_destroy(surface);
+}
+
+void UserMenuScript::step(float dt, Object& object) {
+	const float height_px = 20;
+	auto c_context = cairo_create(surface);
+
+	cairo_select_font_face(c_context, "monospace", CAIRO_FONT_SLANT_NORMAL, CAIRO_FONT_WEIGHT_NORMAL);
+
+	cairo_set_source_rgb(c_context, 1, 0.9, 1);
+	cairo_paint(c_context);
+
+	cairo_set_font_size(c_context, height_px);
+	cairo_set_source_rgb(c_context, 0, 0, 0);
+	cairo_translate(c_context, 0, 0.8 * height_px);
+
+	const std::string stat_multiline = Json::StyledWriter().write(getStat());
+	std::vector<std::string> lines;
+	boost::algorithm::split(lines, stat_multiline, boost::is_any_of("\n"));
+	cairo_save(c_context);
+	for(const auto& line : lines) {
+		cairo_show_text(c_context, line.c_str());
+		cairo_fill(c_context);
+		cairo_translate(c_context, 0, height_px);
+	}
+	cairo_restore(c_context);
+
+	cairo_destroy(c_context);
+
+	object.texture->useIn();
+	glTexImage2D(GL_TEXTURE_2D, 0, GL_RGBA,
+		cairo_image_surface_get_width(surface),
+		cairo_image_surface_get_height(surface),
+		0, GL_BGRA, GL_UNSIGNED_BYTE,
+		cairo_image_surface_get_data(surface));
+}
 
 
 LocomotionScript::LocomotionScript(

@@ -69,23 +69,25 @@ void Core::addInitialObjects() {
 
 	addBuilding();
 
-	// Prepare avatar UIs.
+	// Prepare special UIs.
 	attachLocomotionRing(scene->unsafeGet(scene->add()));
+	attachCursor(scene->unsafeGet(scene->add()));
+
+	attachUserMenu(scene->unsafeGet(scene->add()))
+		.setLocalToWorld(Transform3f(Eigen::Translation<float, 3>(
+			Eigen::Vector3f(-0.8, 1, 1.5))));
 
 	// Prepare example UIs.
 	attachTextQuadAt(scene->unsafeGet(scene->add()), "Input    ", 0.1, 0, 0, 0)
 		.setLocalToWorld(Transform3f(Eigen::Translation<float, 3>(
 			Eigen::Vector3f(0, 1, 1.8))));
 
-	ObjectId input_object = scene->add();
-	attachTextQuadAt(scene->unsafeGet(input_object), "------------------------", 0.12, 0, 0, 0)
+	attachTextQuadAt(scene->unsafeGet(scene->add()), "------------------------", 0.12, 0, 0, 0)
 		.setLocalToWorld(Transform3f(Eigen::Translation<float, 3>(
-			Eigen::Vector3f(0, 1, 1.0))));
-
-	attachCursor(scene->unsafeGet(scene->add()));
+			Eigen::Vector3f(0, 1, 1.0))));	
 }
 
-void Core::attachCursor(Object& object) {
+Object& Core::attachCursor(Object& object) {
 	cairo_surface_t* cursor_surface =
 		cairo_image_surface_create(CAIRO_FORMAT_ARGB32, 50, 50);
 	auto c_context = cairo_create(cursor_surface);
@@ -109,6 +111,24 @@ void Core::attachCursor(Object& object) {
 		std::bind(std::mem_fn(&Core::getViewCenter), this),
 		std::bind(std::mem_fn(&Core::getEyePosition), this),
 		cursor_surface));
+
+	return object;
+}
+
+Object& Core::attachUserMenu(Object& object) {
+	cairo_surface_t* surface =
+		cairo_image_surface_create(CAIRO_FORMAT_ARGB32, 250, 500);
+
+	object.type = ObjectType::UI;
+	object.geometry = generateTexQuadGeometry(0.4, 0.8,
+		Eigen::Vector3f::Zero(), Eigen::Matrix3f::Identity());
+	object.texture = createTextureFromSurface(surface);
+	object.use_blend = false;
+	object.nscript.reset(new UserMenuScript(
+		std::bind(std::mem_fn(&Core::getStat), this),
+		surface));
+
+	return object;
 }
 
 Eigen::Vector3f Core::getFootPosition() {
@@ -320,7 +340,7 @@ void Core::attachSky(Object& object) {
 	object.type = ObjectType::SKY;
 }
 
-void Core::attachLocomotionRing(Object& object) {
+Object& Core::attachLocomotionRing(Object& object) {
 	// Maybe we need to adjust size etc. depending on distance to obstacles.
 
 	cairo_surface_t* locomotion_surface =
@@ -343,6 +363,8 @@ void Core::attachLocomotionRing(Object& object) {
 		std::bind(std::mem_fn(&Core::setMovingDirection), this, std::placeholders::_1),
 		locomotion_surface));
 	object.use_blend = false;
+
+	return object;
 }
 
 void Core::enableExtensions() {
@@ -611,6 +633,12 @@ void Core::step() {
 	adaptEyes();
 
 	scene->step();
+}
+
+Json::Value Core::getStat() {
+	Json::Value stat;
+	stat["uptime"] = glfwGetTime();
+	return stat;
 }
 
 void Core::render() {
