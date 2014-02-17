@@ -24,7 +24,6 @@
 namespace construct {
 
 typedef Eigen::Transform<float, 3, Eigen::Affine> Transform3f;
-typedef uint64_t ObjectId;
 
 class NativeScript;
 class Scene;
@@ -143,8 +142,7 @@ public:
 
 	// Return (pos, normal) of the intersection. Targets are
 	// STATIC and UI.
-	boost::optional<std::pair<Eigen::Vector3f, Eigen::Vector3f>>
-		intersectAny(Ray ray);
+	boost::optional<Intersection> intersectAny(Ray ray);
 private:
 	// TODO: Current process is tangled. Fix it.
 	// ideal:

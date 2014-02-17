@@ -16,12 +16,31 @@
 
 namespace construct {
 
-// t, pos, normal, outgoing radiance
-typedef std::tuple<float, Eigen::Vector3f, Eigen::Vector3f, Colorf> Intersection;
+typedef uint64_t ObjectId;
+
+class Intersection {
+public:
+	Intersection(float t,
+		Eigen::Vector3f pos, Eigen::Vector3f n, Colorf radiance,
+		ObjectId id);
+
+	// ray info
+	float t;
+
+	// surface info
+	Eigen::Vector3f position;
+	Eigen::Vector3f normal;
+	Colorf radiance;
+
+	// object info
+	ObjectId id;
+};
+
 
 class Ray {
 public:
 	Ray(Eigen::Vector3f org, Eigen::Vector3f dir);
+	Eigen::Vector3f at(float t);
 
 	Eigen::Vector3f org;
 	Eigen::Vector3f dir;
@@ -55,6 +74,7 @@ public:
 	Eigen::Vector3f d1;
 	Eigen::Vector3f d2;
 
+	ObjectId attribute;
 private:
 	Eigen::Vector3f normal;
 	// pointer = 8 byte, Vec3f = 12 byte. storing reference is stupid.

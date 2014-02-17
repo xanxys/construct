@@ -171,11 +171,17 @@ void CursorScript::step(float dt, Object& object) {
 	auto isect = object.scene.intersectAny(ray);
 
 	if(!isect) {
-		// TODO: hide
+		// TODO: hide cursor
 	} else {
+		// Send message to the object.
+		Json::Value message;
+		message["type"] = "stare";
+		object.scene.sendMessage(isect->id, message);
+
+		// Move cursor.
 		object.setLocalToWorld(
-			Eigen::Translation<float, 3>(isect->first + isect->second * 0.01) *
-			createBasis(isect->second));
+			Eigen::Translation<float, 3>(isect->position + isect->normal * 0.01) *
+			createBasis(isect->normal));
 	}
 }
 

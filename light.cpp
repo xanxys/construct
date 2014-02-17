@@ -2,7 +2,17 @@
 
 namespace construct {
 
+Intersection::Intersection(
+	float t, Eigen::Vector3f pos, Eigen::Vector3f n, Colorf radiance, ObjectId id) :
+	t(t), position(pos), normal(n), radiance(radiance), id(id) {
+}
+
+
 Ray::Ray(Eigen::Vector3f org, Eigen::Vector3f dir) : org(org), dir(dir) {
+}
+
+Eigen::Vector3f Ray::at(float t) {
+	return org + dir * t;
 }
 
 
@@ -39,9 +49,12 @@ boost::optional<Intersection> Triangle::intersect(Ray ray) {
 		return boost::optional<Intersection>();
 	}
 
-	return boost::optional<Intersection>(std::make_tuple(
-		t, ray.org + ray.dir * t, normal,
-		(1 - a - b) * ir0 + a * ir1 + b * ir2));
+	return boost::optional<Intersection>(Intersection(
+		t,
+		ray.at(t),
+		normal,
+		(1 - a - b) * ir0 + a * ir1 + b * ir2,
+		attribute));
 }
 
 Eigen::Vector3f Triangle::getVertexPos(int i) {

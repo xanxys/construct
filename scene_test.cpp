@@ -27,7 +27,12 @@ TEST(TriangleTest, IntersectionIsValid) {
 
 	// Check t & normal.
 	auto isect = *triangle.intersect(ray_front_inside);
-	EXPECT_NEAR(1, std::get<0>(isect), 1e-5);  // t
-	EXPECT_NEAR(0, (std::get<1>(isect) - Eigen::Vector3f(0.25, 0.25, 0)).norm(), 1e-5);
-	EXPECT_NEAR(0, (std::get<2>(isect) - Eigen::Vector3f(0, 0, 1)).norm(), 1e-5);
+	EXPECT_NEAR(1, isect.t, 1e-5);
+	EXPECT_NEAR(0, (isect.position - Eigen::Vector3f(0.25, 0.25, 0)).norm(), 1e-5);
+	EXPECT_NEAR(0, (isect.normal - Eigen::Vector3f(0, 0, 1)).norm(), 1e-5);
+
+	// Radiance must be non-negative.
+	EXPECT_LE(0, isect.radiance[0]);
+	EXPECT_LE(0, isect.radiance[1]);
+	EXPECT_LE(0, isect.radiance[2]);
 }

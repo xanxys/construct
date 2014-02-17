@@ -66,7 +66,7 @@ void Scene::deleteObject(ObjectId target) {
 	deletion.push_back(target);
 }
 
-boost::optional<std::pair<Eigen::Vector3f, Eigen::Vector3f>>
+boost::optional<Intersection>
 	Scene::intersectAny(Ray ray) {
 
 	// Intersect UI elements.
@@ -75,7 +75,7 @@ boost::optional<std::pair<Eigen::Vector3f, Eigen::Vector3f>>
 
 	boost::optional<Intersection> isect;
 	if(isect_ui && isect_static) {
-		if(std::get<0>(*isect_ui) < std::get<0>(*isect_static)) {
+		if(isect_ui->t < isect_static->t) {
 			isect = isect_ui;
 		} else {
 			isect = isect_static;
@@ -86,22 +86,14 @@ boost::optional<std::pair<Eigen::Vector3f, Eigen::Vector3f>>
 		isect = isect_static;
 	}
 
-	// Convert.
-	if(isect) {
-		return boost::optional<
-			std::pair<Eigen::Vector3f, Eigen::Vector3f>>(
-				std::make_pair(std::get<1>(*isect), std::get<2>(*isect)));
-	} else {
-		return boost::optional<
-			std::pair<Eigen::Vector3f, Eigen::Vector3f>>();
-	}
+	return isect;
 }
 
 boost::optional<Intersection> Scene::intersectUI(Ray ray) {
 	boost::optional<Intersection> isect_nearest;
 	for(auto& tri : tris_ui) {
 		auto isect = tri.intersect(ray);
-		if(isect && (!isect_nearest || std::get<0>(*isect) < std::get<0>(*isect_nearest))) {
+		if(isect && (!isect_nearest || isect->t < isect_nearest->t)) {
 			isect_nearest = isect;
 		}
 	}
@@ -112,7 +104,7 @@ boost::optional<Intersection> Scene::intersect(Ray ray) {
 	boost::optional<Intersection> isect_nearest;
 	for(auto& tri : tris) {
 		auto isect = tri.intersect(ray);
-		if(isect && (!isect_nearest || std::get<0>(*isect) < std::get<0>(*isect_nearest))) {
+		if(isect && (!isect_nearest || isect->t < isect_nearest->t)) {
 			isect_nearest = isect;
 		}
 	}
@@ -284,7 +276,7 @@ Colorf Scene::getRadiance(Ray ray) {
 	auto isect = intersect(ray);
 
 	return isect ?
-		std::get<3>(*isect) :
+		isect->radiance :
 		sky.getRadianceAt(ray.dir);
 }
 
