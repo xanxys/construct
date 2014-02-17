@@ -56,27 +56,30 @@ Core::Core(bool windowed) :
 
 	std::cout << "V8 says: " << *ascii << std::endl;
 
+	// Create scene
+	scene.reset(new Scene());
+
 	addInitialObjects();
-	scene.updateGeometry();
+	scene->updateGeometry();
 }
 
 void Core::addInitialObjects() {
-	attachSky(scene.unsafeGet(scene.add()));
+	attachSky(scene->unsafeGet(scene->add()));
 
 	addBuilding();
 
 	// Prepare avatar things
-	attachLocomotionRing(scene.unsafeGet(scene.add()));
+	attachLocomotionRing(scene->unsafeGet(scene->add()));
 
 	// Prepare dasher things
-	attachTextQuadAt(scene.unsafeGet(scene.add()), "Input    ", 0.1, 0, 1, 1.8);
+	attachTextQuadAt(scene->unsafeGet(scene->add()), "Input    ", 0.1, 0, 1, 1.8);
 
-	ObjectId input_object = scene.add();
-	attachTextQuadAt(scene.unsafeGet(input_object), "------------------------", 0.12, 0, 1, 1.0);	
+	ObjectId input_object = scene->add();
+	attachTextQuadAt(scene->unsafeGet(input_object), "------------------------", 0.12, 0, 1, 1.0);	
 
-	attachDasherQuadAt(scene.add(), input_object, 0.5, 0, 0.9, 1.4);
+	attachDasherQuadAt(scene->add(), input_object, 0.5, 0, 0.9, 1.4);
 
-	attachCursor(scene.unsafeGet(scene.add()));
+	attachCursor(scene->unsafeGet(scene->add()));
 }
 
 void Core::attachCursor(Object& object) {
@@ -90,7 +93,6 @@ void Core::attachCursor(Object& object) {
 	cairo_destroy(c_context);
 	auto texture = createTextureFromSurface(cursor_surface);
 
-	object.shader = texture_shader;
 	object.type = ObjectType::UI_CURSOR;
 
 	Eigen::Matrix3f rot;
@@ -134,7 +136,7 @@ float Core::estimateMaxRadiance() {
 			sample_dir.normalize();
 
 			radiances.push_back(
-				scene.getRadiance(Ray(eye_pos, sample_dir)).norm());
+				scene->getRadiance(Ray(eye_pos, sample_dir)).norm());
 		}
 	}
 	std::sort(radiances.begin(), radiances.end());
@@ -175,14 +177,14 @@ void Core::addBuilding() {
 					std::normal_distribution<float>(0.9, 0.01)(random) :
 					std::normal_distribution<float>(0.8, 0.01)(random);
 
-				attachCuboid(scene.unsafeGet(scene.add()),
+				attachCuboid(scene->unsafeGet(scene->add()),
 					Eigen::Vector3f(0.45, 0.45, 0.04),
 					Eigen::Vector3f(i * 0.5, j * 0.5, -0.02 + z * 4),
 					Eigen::Vector3f(refl, refl, refl));
 			}
 		}
 
-		attachCuboid(scene.unsafeGet(scene.add()),
+		attachCuboid(scene->unsafeGet(scene->add()),
 			Eigen::Vector3f(8, 8, 0.04),
 			Eigen::Vector3f(0, 0, -0.06 + z * 4),
 			Eigen::Vector3f(0.8, 0.8, 0.8));
@@ -194,7 +196,7 @@ void Core::addBuilding() {
 			const float spacing = 5;
 			const float height = 4;
 
-			attachCuboid(scene.unsafeGet(scene.add()),
+			attachCuboid(scene->unsafeGet(scene->add()),
 				Eigen::Vector3f(0.5, 0.5, height),
 				Eigen::Vector3f((dx + 0.5) * spacing, (dy + 0.5) * spacing, height / 2),
 				Eigen::Vector3f(0.7, 0.7, 0.7));
@@ -209,12 +211,12 @@ void Core::addBuilding() {
 		const float py = std::normal_distribution<float>(0, 4)(random);
 
 		// pillar
-		attachCuboid(scene.unsafeGet(scene.add()),
+		attachCuboid(scene->unsafeGet(scene->add()),
 			Eigen::Vector3f(0.08, 0.08, height),
 			Eigen::Vector3f(px, py, height * 0.5));
 
 		// seat
-		attachCuboid(scene.unsafeGet(scene.add()),
+		attachCuboid(scene->unsafeGet(scene->add()),
 			Eigen::Vector3f(0.25, 0.25, 0.07),
 			Eigen::Vector3f(px, py, height));
 	}
@@ -222,13 +224,13 @@ void Core::addBuilding() {
 	
 	// stairs
 	for(int i = 0; i < 40; i++) {
-		attachCuboid(scene.unsafeGet(scene.add()),
+		attachCuboid(scene->unsafeGet(scene->add()),
 			Eigen::Vector3f(1, 0.2, 0.2),
 			Eigen::Vector3f(1.5, 1.5 + 0.2 * i, 0.1 + 0.2 * i));
 	}
 
 	// add elevator
-	attachCuboid(scene.unsafeGet(scene.add()),
+	attachCuboid(scene->unsafeGet(scene->add()),
 			Eigen::Vector3f(1.8, 1.8, 8),
 			Eigen::Vector3f(0, -4, 0),
 			Eigen::Vector3f(0.5, 0.5, 0.5));
@@ -270,7 +272,6 @@ void Core::attachCuboid(Object& object,
 		vertex.row(i).tail(3) = color;
 	}
 
-	object.shader = standard_shader;
 	object.type = ObjectType::STATIC;
 	object.geometry = Geometry::createPosColor(vertex.rows(), vertex.data());
 }
@@ -339,8 +340,7 @@ void Core::attachSky(Object& object) {
 	object.geometry = Geometry::createPosUV(vertex.rows(), vertex.data());
 
 	// Create HDR texture
-	object.texture = scene.getBackgroundImage();
-	object.shader = texture_shader;
+	object.texture = scene->getBackgroundImage();
 	object.type = ObjectType::SKY;
 }
 
@@ -355,7 +355,6 @@ void Core::attachLocomotionRing(Object& object) {
 	cairo_destroy(c_context);
 	auto texture = createTextureFromSurface(locomotion_surface);
 
-	object.shader = texture_shader;
 	object.type = ObjectType::UI;
 	Eigen::Matrix3f rot;
 	rot = Eigen::AngleAxisf(-0.5 * pi, Eigen::Vector3f::UnitX());
@@ -371,7 +370,7 @@ void Core::attachLocomotionRing(Object& object) {
 }
 
 void Core::attachDasherQuadAt(ObjectId widget, ObjectId label, float height_meter, float dx, float dy, float dz) {
-	Object& object = scene.unsafeGet(widget);
+	Object& object = scene->unsafeGet(widget);
 
 	const float aspect_estimate = 1.0;
 	const float px_per_meter = 500;
@@ -390,7 +389,6 @@ void Core::attachDasherQuadAt(ObjectId widget, ObjectId label, float height_mete
 	auto texture = createTextureFromSurface(dasher_surface);
 
 	// Create geometry with texture.
-	object.shader = texture_shader;
 	object.type = ObjectType::UI;
 	object.geometry = generateTexQuadGeometry(width_meter, height_meter,
 		Eigen::Vector3f(dx, dy, dz), Eigen::Matrix3f::Identity());
@@ -428,7 +426,6 @@ void Core::attachTextQuadAt(Object& object, std::string text, float height_meter
 	cairo_destroy(c_context);
 	auto texture = createTextureFromSurface(surf);
 
-	object.shader = texture_shader;
 	object.type = ObjectType::UI;
 	object.geometry = generateTexQuadGeometry(width_meter, height_meter,
 		Eigen::Vector3f(dx, dy, dz), Eigen::Matrix3f::Identity());
@@ -719,8 +716,6 @@ void Core::init(DisplayMode mode) {
 	glFramebufferTexture(GL_FRAMEBUFFER, GL_COLOR_ATTACHMENT0, pre_buffer->unsafeGetId(), 0);
 
 	//
-	standard_shader = Shader::create("gpu/base.vs", "gpu/base.fs");
-	texture_shader = Shader::create("gpu/tex.vs", "gpu/tex.fs");
 	warp_shader = Shader::create("gpu/warp.vs", "gpu/warp.fs");
 }
 
@@ -731,7 +726,7 @@ void Core::step() {
 
 	adaptEyes();
 
-	scene.step();
+	scene->step();
 }
 
 void Core::render() {
@@ -778,19 +773,11 @@ void Core::render() {
 
 	// Left eye
 	glViewport(0, 0, width / 2, height);
-	standard_shader->use();
-	standard_shader->setUniformMat4("world_to_screen", &projections.first.M[0][0]);
-	texture_shader->use();
-	texture_shader->setUniformMat4("world_to_screen", &projections.first.M[0][0]);
-	scene.render();
+	scene->render(&projections.first.M[0][0]);
 
 	// Right eye
 	glViewport(width / 2, 0, width / 2, height);
-	standard_shader->use();
-	standard_shader->setUniformMat4("world_to_screen", &projections.second.M[0][0]);
-	texture_shader->use();
-	texture_shader->setUniformMat4("world_to_screen", &projections.second.M[0][0]);
-	scene.render();
+	scene->render(&projections.second.M[0][0]);
 
 	// Apply warp shader (framebuffer -> back buffer)
 	if(use_distortion) {

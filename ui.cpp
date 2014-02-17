@@ -173,6 +173,8 @@ void TextLabelScript::step(float dt, Object& object) {
 		editing = true;
 
 		// show dasher
+		//object.id
+		// attachDasher
 		std::cout << "TODO: show dasher" << std::endl;
 	}
 }

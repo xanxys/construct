@@ -89,7 +89,7 @@ void Shader::setUniform(std::string variable, float v0, float v1, float v2, floa
 	glUniform4f(getVariable(variable), v0, v1, v2, v3);
 }
 
-void Shader::setUniformMat4(std::string variable, float* pv) {
+void Shader::setUniformMat4(std::string variable, const float* pv) {
 	glUniformMatrix4fv(getVariable(variable), 1, GL_TRUE, pv);
 }
 

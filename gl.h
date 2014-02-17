@@ -18,7 +18,7 @@ public:
 	void setUniform(std::string variable, float v0);
 	void setUniform(std::string variable, float v0, float v1);
 	void setUniform(std::string variable, float v0, float v1, float v2, float v3);
-	void setUniformMat4(std::string variable, float* pv);
+	void setUniformMat4(std::string variable, const float* pv);
 
 	void use();
 protected:

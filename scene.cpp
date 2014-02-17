@@ -2,8 +2,8 @@
 
 namespace construct {
 
-Object::Object(Scene& scene) : scene(scene), use_blend(false),
-	local_to_world(Transform3f::Identity()) {
+Object::Object(Scene& scene, ObjectId id) : scene(scene), use_blend(false),
+	local_to_world(Transform3f::Identity()), id(id) {
 }
 
 void Object::addMessage(Json::Value value) {
@@ -43,11 +43,13 @@ void NativeScript::step(float dt, Object& object) {
 // For diffuse-like surface, luminance = candela / 2pi
 // overcast sky = (200, 200, 220)
 Scene::Scene() : new_id(0), native_script_counter(0), lighting_counter(0) {
+	standard_shader = Shader::create("gpu/base.vs", "gpu/base.fs");
+	texture_shader = Shader::create("gpu/tex.vs", "gpu/tex.fs");
 }
 
 ObjectId Scene::add() {
 	const ObjectId id = new_id++;
-	objects[id] = std::unique_ptr<Object>(new Object(*this));
+	objects[id] = std::unique_ptr<Object>(new Object(*this, id));
 	return id;
 }
 
@@ -300,7 +302,7 @@ std::shared_ptr<Texture> Scene::getBackgroundImage() {
 	return sky.generateEquirectangular();
 }
 
-void Scene::render() {
+void Scene::render(const float* projection) {
 	for(auto& pair : objects) {
 		auto& object = pair.second;
 
@@ -314,22 +316,31 @@ void Scene::render() {
 			glBlendFunc(GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA);
 		}
 
-		object->shader->use();
 		if(object->type == ObjectType::UI || object->type == UI_CURSOR) {
 			Eigen::Matrix<float, 4, 4, Eigen::RowMajor> m =
 				object->getLocalToWorld().matrix();
 
 			object->texture->useIn(0);
-			object->shader->setUniform("texture", 0);
-			object->shader->setUniform("luminance", 25.0f);
-			object->shader->setUniformMat4("local_to_world", m.data());
+			texture_shader->use();
+			texture_shader->setUniformMat4("world_to_screen", projection);
+			texture_shader->setUniform("texture", 0);
+			texture_shader->setUniform("luminance", 25.0f);
+			texture_shader->setUniformMat4("local_to_world", m.data());
 		} else if(object->type == ObjectType::SKY) {
 			Eigen::Matrix<float, 4, 4, Eigen::RowMajor> m =
 				Eigen::Matrix4f::Identity();
+
 			object->texture->useIn(0);
-			object->shader->setUniform("texture", 0);
-			object->shader->setUniform("luminance", 1.0f);
-			object->shader->setUniformMat4("local_to_world", m.data());
+			texture_shader->use();
+			texture_shader->setUniformMat4("world_to_screen", projection);
+			texture_shader->setUniform("texture", 0);
+			texture_shader->setUniform("luminance", 1.0f);
+			texture_shader->setUniformMat4("local_to_world", m.data());
+		} else if(object->type == ObjectType::STATIC) {
+			standard_shader->use();
+			standard_shader->setUniformMat4("world_to_screen", projection);
+		} else {
+			throw "Unknown ObjectType";
 		}
 		object->geometry->render();
 

@@ -93,13 +93,7 @@ private:
 	Eigen::Vector3f avatar_move_dir;
 
 	// GL - Scene things.
-	Scene scene;
-
-	// TODO: dependency on these shaders prevents moving attach... methods
-	// to ui.cpp
-	std::shared_ptr<Shader> standard_shader;
-	std::shared_ptr<Shader> texture_shader;
-	std::shared_ptr<Shader> warp_shader;
+	std::unique_ptr<Scene> scene;
 
 	// OVR-GL things.
 	GLuint FramebufferName;
@@ -116,6 +110,7 @@ private:
 	int buffer_width;
 	int buffer_height;
 
+	std::shared_ptr<Shader> warp_shader;
 	std::shared_ptr<Geometry> proxy;
 	std::shared_ptr<Texture> pre_buffer;
 

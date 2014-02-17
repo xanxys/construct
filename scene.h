@@ -64,30 +64,29 @@ enum ObjectType {
 // * UI (tex shader): can move freely, with almost no physics.
 class Object {
 public:
-	Object(Scene& scene);
-
-	bool use_blend;
+	Object(Scene& scene, ObjectId id);
 
 	// These details should not belong to Object. Instead,
 	// they are generated as needed in lighting etc.
 	std::shared_ptr<Geometry> geometry;
-	std::shared_ptr<Shader> shader;
 
 	// optional
 	std::shared_ptr<Texture> texture;
-
-
 	std::unique_ptr<NativeScript> nscript;
 
 	void addMessage(Json::Value value);
 	boost::optional<Json::Value> getMessage();
 
-	Scene& scene;
-
-	ObjectType type;
-
 	void setLocalToWorld(Transform3f trans);
 	Transform3f getLocalToWorld();
+
+	Scene& scene;
+	ObjectType type;
+
+	bool use_blend;
+
+	// Object doesn't own an id. It's borrowed from Scene.
+	const ObjectId id;
 private:
 	std::vector<Json::Value> queue;
 
@@ -129,7 +128,7 @@ public:
 	Object& unsafeGet(ObjectId);
 
 	void step();
-	void render();
+	void render(const float* projection);
 	
 	void sendMessage(ObjectId destination, Json::Value value);
 	void deleteObject(ObjectId target);
@@ -171,6 +170,10 @@ private:
 private:
 	Sky sky;
 	
+	// shaders
+	std::shared_ptr<Shader> standard_shader;
+	std::shared_ptr<Shader> texture_shader;
+
 	// geometry
 	std::vector<Triangle> tris;
 	std::vector<Triangle> tris_ui;
