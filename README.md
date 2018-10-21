@@ -37,3 +37,11 @@ The code is licensed under FreeBSD.
 Dependency
 ----------
 See .travis.yml file for (ubuntu) package names.
+
+
+Example "Apps"
+----------
+Impl of Dasher (Eye-cursor only input method developed by some researchted).
+In construct, implemented using NativeScript + in-scene quad + very basic English language model.
+
+[![Dasher](http://img.youtube.com/vi/FFQgluUwV2U/0.jpg)](https://www.youtube.com/watch?v=FFQgluUwV2U)
